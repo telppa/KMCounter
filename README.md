@@ -3,9 +3,31 @@ Efficient and beautiful, statistics and display the usage of keyboard and mouse.
 
 一个高效且美观，统计并显示键盘与鼠标使用情况的项目。
 
-## Download (下载)
+## Features (特性)
+> Mouse      info  
+> Keyboard   info  
+> Single Key info  
+> History    info  
 
-https://github.com/telppa/KMCounter/releases
+> 支持查看鼠标信息。  
+> 支持查看键盘信息。  
+> 支持查看单键信息。  
+> 支持查看历史信息。  
+> 支持设置屏幕尺寸。  
+> 支持设置键盘布局。  
+> 支持设置开机启动。  
+> 支持高分辨率屏幕。  
+> 支持低分辨率屏幕。  
+> 更准确的统计方法。  
+> 更完善的数据管理。  
+> 键盘布局总是对齐。  
+> 默认使用莫兰迪色。  
+> 不想用了直接删除。  
+> 不写系统不留垃圾。  
+
+## Download (下载)
+[Github Releases](https://github.com/telppa/KMCounter/releases)  
+[蓝奏云](https://ahk.lanzous.com/iuhLXmwvg1c)
 
 ## Usage (使用方法)
 After running, KMCounter will be resident in the tray menu for statistics, click the tray icon to view the results when needed.
@@ -43,3 +65,9 @@ Because KMCounter will statistics keyboard and mouse use, so antivirus software 
 4. Donate 100RMB or more.
 
    捐赠 100RMB 以上。
+
+## Thanks (感谢)
+[fwt](https://www.autoahk.com/archives/35133)  
+[SKAN](https://www.autohotkey.com/boards/viewtopic.php?f=6&t=76881)  
+[just me](https://github.com/AHK-just-me)  
+[robodesign](https://github.com/marius-sucan)  

@@ -7,7 +7,7 @@ https://www.autoahk.com/archives/35147
 #SingleInstance Force
 SetBatchLines, -1
 
-global APPName:="KMCounter", ver:=2.0
+global APPName:="KMCounter", ver:=2.2
      , today:=SubStr(A_Now, 1, 8)
      , devicecaps:={}, layout:={}
      , hHookMouse, mouse:={}
@@ -26,6 +26,51 @@ HookKeyboard()                          ; 键盘钩子
 SetTimer, Reload, % countdown()         ; 设置一个计时器用于跨夜时重启进程以便保存当日数据并开始新的一天
 OnExit("ExitFunc")                      ; 退出时在这里卸载钩子保存参数
 
+return
+
+Translate:
+{
+  t_menu_统计:="统计"
+  t_menu_设置:="设置"
+  t_menu_开机启动:="开机启动"
+  t_menu_布局定制:="布局定制"
+  t_menu_退出:="退出"
+
+  t_gui1_当前显示数据:="当前显示数据"
+  t_gui1_鼠标移动:="鼠标移动"
+  t_gui1_键盘敲击:="键盘敲击"
+  t_gui1_左键点击:="左键点击"
+  t_gui1_右键点击:="右键点击"
+  t_gui1_中键点击:="中键点击"
+  t_gui1_滚轮滚动:="滚轮滚动"
+  t_gui1_滚轮横滚:="滚轮横滚"
+  t_gui1_侧键点击:="侧键点击"
+  t_gui1_屏幕尺寸:="屏幕尺寸"
+  t_gui1_米:="米"
+  t_gui1_次:="次"
+  t_gui1_寸:="寸"
+  t_gui1_msgbox:="今日按键次数较少，故暂未生成按键热点图。"
+
+  t_gui2_设置:="设置"
+  t_gui2_屏幕尺寸:="屏幕尺寸"
+  t_gui2_sub1:="设置显示器的真实尺寸。"
+  t_gui2_屏幕宽:="屏幕宽"
+  t_gui2_屏幕高:="屏幕高"
+  t_gui2_毫米:="毫米"
+  t_gui2_键盘布局:="键盘布局"
+  t_gui2_sub2:="设置键盘热力图的尺寸。"
+  t_gui2_键宽:="键宽"
+  t_gui2_键高:="键高"
+  t_gui2_键间距:="键间距"
+  t_gui2_区域水平间距:="区域水平间距"
+  t_gui2_区域垂直间距:="区域垂直间距"
+  t_gui2_像素:="像素"
+  t_gui2_取消:="取消"
+  t_gui2_保存:="保存"
+
+  t_welcome_main:="欢迎使用 KMCounter"
+  t_welcome_sub:="KMCounter 将常驻托盘菜单为你统计所需信息。`n点击托盘图标即可查看统计结果。"
+}
 return
 
 Welcome:
@@ -188,15 +233,42 @@ return
 
 CreateMenu:
 {
-  Menu, Tray, Icon, %APPName%.ico         ; 加载图标
-  Menu, Tray, NoStandard                  ; 不显示 ahk 自己的菜单
-  Menu, Tray, Add, 统计, MenuHandler      ; 创建新菜单项
+  Menu, Tray, NoStandard                           ; 不显示 ahk 自己的菜单
+  Menu, Tray, Add, 统计, MenuHandler               ; 创建新菜单项
+  Menu, Tray, Default, 统计                        ; 将统计设为默认项
   Menu, Tray, Add, 设置, MenuHandler
+  Menu, Tray, Add                                  ; 分隔符
   Menu, Tray, Add, 开机启动, MenuHandler
-  Menu, Tray, Add, 定制布局, MenuHandler
+  Menu, Tray, Add, 布局定制, MenuHandler
+  Menu, Tray, Add
   Menu, Tray, Add, 退出, MenuHandler
-  Menu, Tray, Default, 统计               ; 将统计设为默认项
-  IfExist, %A_Startup%\%APPName%.Lnk      ; 检测启动文件夹中是否有快捷方式来确定是否勾选自启
+
+  ico1:="iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA4klEQVQ4T6XToU5DQRCF4e+6VvQBeIVCQuqQYCENinoMDQkCgcJQ"
+  ico1.="dE0FqkhEkzYoBAEErrwA8DqQSe5NNrTcbtNRK3b+nTnnbGHDKsr+AW4yWD3M0nsV4Afb+M6AnGIPZzhIAdW5jrGP9+RCa11AExMc"
+  ico1.="4xmHdYAjXOEaH9jFPYblBA08/Afo4A13OMcFRrhMRGyHZssAW3jFI8KdyqG/DnxiZxngBXPcrnAknCtSwEk5Xry4qjnYC4AuntDH"
+  ico1.="OCMPC4DcIAU7BPxKV8iNcjpYrDnISV/tNhVgihBxnYpP1dt4gl9sRC5dONyGKQAAAABJRU5ErkJggg=="
+  ico1:=Base64PNG_to_HICON(ico1)
+
+  ico2:="iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABVklEQVQ4T63TP0tXcRTH8ZdGTyAcXIJagxYXUQJ1qaUnELaILTqI"
+  ico2.="o2L4BzRzaWgogqIlwbaG0jGHyEUI8gkYbQ0tgUtLfOBcuV74haBnuff757zPOZ9zvn0uaH09/MfxuXM2gf3u/S4gjrmU7wriFAts"
+  ico2.="rXV2CmoDNjCPVdzCjQ4g6wM8wBMshdwAbuM77mILPzCHn5XBNWxiEAmUDIZx1AC26/JCq8ZJ3Kn1F+ROY+u4ickGcFgnSf8jRivS"
+  ico2.="Ue0nw6T8FferzH4MtTWIaBEvwr3DX0wV4C2u4mEJ+g2PcdIGJPpYAV4WIDrEnhdgpgCvsNMWMSWc4Bk+pDY8wnEB0oHXpUNKWMan"
+  ico2.="tPZ/IkaH2QK8qPobEZ/iT3TqtvEekuYvLOJ3eVyvMpLRLt4jrT2dg/ynv4m4h5FKvz2JcRjAlZrK6HQGkPV5Rnkab5paLv0x9Xic"
+  ico2.="vbf/AUZITBFlGQzCAAAAAElFTkSuQmCC"
+  ico2:=Base64PNG_to_HICON(ico2)
+
+  ico3.="iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAgElEQVQ4T2NkoBAwUqifAW6Ajo7Of1IMu3LlClgvigEwQUIGgSyj"
+  ico3.="jQFINh9gZGRU+P///y0017jB+FhdwMjIqAdS8P//f2FGRsY+BgaGeGze+f///yW8XtDR0RFnYGBYc+XKFVtsBhAMg1EDGBjIDgNC"
+  ico3.="KRBZHiMaSdGMrJbi3AgA8Z51EexVYzAAAAAASUVORK5CYII="
+  ico3:=Base64PNG_to_HICON(ico3)
+
+  if (!A_IsCompiled)
+    Menu, Tray, Icon, resouces\%APPName%.ico       ; 加载托盘图标
+  Menu, Tray, Icon, 统计, HICON:%ico1%             ; 加载菜单图标
+  Menu, Tray, Icon, 设置, HICON:%ico2%
+  Menu, Tray, Icon, 布局定制, HICON:%ico3%
+
+  IfExist, %A_Startup%\%APPName%.Lnk               ; 检测启动文件夹中是否有快捷方式来确定是否勾选自启
     Menu, Tray, Check, 开机启动
 }
 return
@@ -234,7 +306,7 @@ MenuHandler:
     }
   }
 
-  if (A_ThisMenuItem = "定制布局")
+  if (A_ThisMenuItem = "布局定制")
   {
     Run, https://github.com/telppa/KMCounter
     Run, https://www.autoahk.com/archives/35147
@@ -283,7 +355,11 @@ ShowHeatMap:
     }
   }
   else
-    MsgBox 0x2040, , 今日按键次数较少，故暂未生成按键热点图。
+  {
+    for k, count in keyboard[date]
+      CtlColors.Change(%k%, Opt.BackgroundColor, Opt.TextColor)
+    MsgBox 0x42040, , 今日按键次数较少，故暂未生成按键热点图。
+  }
 return
 
 ; 鼠标移动到按键上时，显示对应按键敲击次数。
@@ -304,12 +380,14 @@ WM_MOUSEMOVE()
 }
 
 BlockClickOnGui1:
+{
   OnMessage(0x0201, "BlockClick")   ; 左键按下
   OnMessage(0x0202, "BlockClick")   ; 左键弹起
   OnMessage(0x0203, "BlockClick")   ; 左键双击
   OnMessage(0x0204, "BlockClick")   ; 右键按下
   OnMessage(0x0205, "BlockClick")   ; 右键弹起
   OnMessage(0x0206, "BlockClick")   ; 右键双击
+}
 return
 
 BlockClick(wParam, lParam, msg, hwnd)
