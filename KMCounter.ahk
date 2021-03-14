@@ -7,8 +7,10 @@ https://www.autoahk.com/archives/35147
 #SingleInstance Force
 SetBatchLines, -1
 
-global APPName:="KMCounter", ver:=3.0
+global APPName:="KMCounter", ver:=3.1
      , today:=SubStr(A_Now, 1, 8)
+     , DataStorageDays:=30
+     , firstday:=EnvAdd(today, -DataStorageDays, "Days", 1, 8)
      , devicecaps:={}, layout:={}
      , hHookMouse, mouse:={}
      , hHookKeyboard, keyboard:={}
@@ -18,7 +20,7 @@ gosub, Welcome                          ; 首次使用时显示欢迎信息
 LoadData(today)                         ; 初始化除 hHookMouse hHookKeyboard 的全部全局变量
 gosub, BlockClickOnGui1                 ; 因为键盘热力图是用 Edit 控件画的，所以屏蔽鼠标点击造成其外观改变
 gosub, CreateMenu                       ; 创建托盘菜单
-gosub, CreateGui                        ; 预先创建 GUI 以便需要时加速显示
+gosub, CreateGui1                       ; 预先创建 GUI1 以便需要时加速显示
 gosub, CreateGui2                       ; 预先创建 GUI2 以便需要时加速显示
 
 HookMouse()                             ; 鼠标钩子
@@ -34,7 +36,7 @@ IfNotExist, KMCounter.ini
   OSDTIP_Pop(L_welcome_main, L_welcome_sub, -20000, "fm12 fs9 W320", "微软雅黑")
 return
 
-CreateGui:
+CreateGui1:
   ControlList:=LoadControlList(layout)                          ; 控件布局信息在此处创建
   Opt   := ControlList.Opt
   scale := A_ScreenDPI/96
@@ -92,25 +94,30 @@ WheelDown::
 WheelUp::
 PgDn::
 PgUp::
-  Critical, On
+  Critical
   ; 设置默认值
   NonNull(history, today)
-  switch, A_ThisHotkey
+  loop, % DataStorageDays
   {
-    case, "WheelDown","PgDn": EnvAdd, history, -1, Days  ; 前一天
-    case, "WheelUp","PgUp":   EnvAdd, history,  1, Days  ; 后一天
+    switch, A_ThisHotkey
+    {
+      case, "WheelDown","PgDn": history:=EnvAdd(history, -1, "Days", 1, 8)  ; 前一天
+      case, "WheelUp","PgUp":   history:=EnvAdd(history,  1, "Days", 1, 8)  ; 后一天
+    }
+    ; 日期永远在今天与第一天之间循环
+    if (history > today)
+      history := firstday
+    if (history < firstday)
+      history := today
+
+    ; 找到历史数据，并且历史数据与当前显示数据不同，则刷新
+    if (LoadData(history) and date!=history)
+    {
+      date := history
+      gosub, ShowHeatMap
+      break
+    }
   }
-  ; 恢复日期格式。日期经过 EnvAdd 计算后位数会发生变化。
-  history := SubStr(history, 1, 8)
-  ; 历史数据中没有的日期都显示为今日数据
-  if (!LoadData(history))
-  {
-    date    := today
-    history := today
-  }
-  date := history
-  gosub, ShowHeatMap
-  Critical, Off
 return
 #If
 
@@ -183,7 +190,8 @@ SaveSetting:
   Gui, 2:Submit
   UpdateDeviceCaps(dw, dh)
   UpdateLayout(lkw, lkh, lks, lkhs, lkvs)
-  gosub, Reload   ; 直接重启以便更新设置
+  ; 直接重启以便更新设置
+  gosub, Reload
 return
 
 Reload:
@@ -379,10 +387,13 @@ LoadData(date)
   SavedSectionNames:={}
   for k, SectionName in SectionNames
   {
-    if (EnvSub(date, SectionName, "Days") > 7)  ; 超过n天则算超时
-      IniDelete, KMCounter.ini, %SectionName%   ; 因为要省略最后一个参数才能删除整段，所以只能用命令的形式
-    else
-      SavedSectionNames[SectionName]:=""
+    if SectionName is integer
+    {
+      if (SectionName < firstday)                ; 小于第一天则算超时
+        IniDelete, KMCounter.ini, %SectionName%  ; 因为要省略最后一个参数才能删除整段，所以只能用命令的形式
+      else
+        SavedSectionNames[SectionName]:=""
+    }
   }
   ; 历史数据不存在则返回 false
   if (!SavedSectionNames.HasKey(date) and date!=today)
@@ -539,7 +550,7 @@ getcolors(c1, c2, n)
 
 countdown()
 {
-  tomorrow:=EnvAdd(today, 1, "Days")
+  tomorrow:=EnvAdd(today, 1, "Days", 1, 14)
   ; 距离明天凌晨 0:00:05 的秒数，+5秒是为了给系统时间不准留点余量
   return, -(EnvSub(tomorrow, A_Now, "Seconds")+5)*1000
 }
@@ -584,9 +595,10 @@ EnvSub(Var, Value, TimeUnits){
   EnvSub, Var, %Value%, %TimeUnits%
   return, Var
 }
-EnvAdd(Var, Value, TimeUnits){
+EnvAdd(Var, Value, TimeUnits, StartingPos, Length){
   EnvAdd, Var, %Value%, %TimeUnits%
-  return, Var
+  ; 日期经过 EnvAdd 计算后位数会发生变化，所以用 SubStr 还原。
+  return, SubStr(Var, StartingPos, Length)
 }
 MouseGetPos(ByRef OutputVarX, ByRef OutputVarY){
 	MouseGetPos, OutputVarX, OutputVarY
