@@ -7,12 +7,13 @@ https://www.autoahk.com/archives/35147
 #SingleInstance Force
 SetBatchLines, -1
 
-global APPName:="KMCounter", ver:=2.2
+global APPName:="KMCounter", ver:=3.0
      , today:=SubStr(A_Now, 1, 8)
      , devicecaps:={}, layout:={}
      , hHookMouse, mouse:={}
      , hHookKeyboard, keyboard:={}
 
+gosub, MultiLanguage                    ; 多语言支持
 gosub, Welcome                          ; 首次使用时显示欢迎信息
 LoadData(today)                         ; 初始化除 hHookMouse hHookKeyboard 的全部全局变量
 gosub, BlockClickOnGui1                 ; 因为键盘热力图是用 Edit 控件画的，所以屏蔽鼠标点击造成其外观改变
@@ -28,57 +29,9 @@ OnExit("ExitFunc")                      ; 退出时在这里卸载钩子保存�
 
 return
 
-Translate:
-{
-  t_menu_统计:="统计"
-  t_menu_设置:="设置"
-  t_menu_开机启动:="开机启动"
-  t_menu_布局定制:="布局定制"
-  t_menu_退出:="退出"
-
-  t_gui1_当前显示数据:="当前显示数据"
-  t_gui1_鼠标移动:="鼠标移动"
-  t_gui1_键盘敲击:="键盘敲击"
-  t_gui1_左键点击:="左键点击"
-  t_gui1_右键点击:="右键点击"
-  t_gui1_中键点击:="中键点击"
-  t_gui1_滚轮滚动:="滚轮滚动"
-  t_gui1_滚轮横滚:="滚轮横滚"
-  t_gui1_侧键点击:="侧键点击"
-  t_gui1_屏幕尺寸:="屏幕尺寸"
-  t_gui1_米:="米"
-  t_gui1_次:="次"
-  t_gui1_寸:="寸"
-  t_gui1_msgbox:="今日按键次数较少，故暂未生成按键热点图。"
-
-  t_gui2_设置:="设置"
-  t_gui2_屏幕尺寸:="屏幕尺寸"
-  t_gui2_sub1:="设置显示器的真实尺寸。"
-  t_gui2_屏幕宽:="屏幕宽"
-  t_gui2_屏幕高:="屏幕高"
-  t_gui2_毫米:="毫米"
-  t_gui2_键盘布局:="键盘布局"
-  t_gui2_sub2:="设置键盘热力图的尺寸。"
-  t_gui2_键宽:="键宽"
-  t_gui2_键高:="键高"
-  t_gui2_键间距:="键间距"
-  t_gui2_区域水平间距:="区域水平间距"
-  t_gui2_区域垂直间距:="区域垂直间距"
-  t_gui2_像素:="像素"
-  t_gui2_取消:="取消"
-  t_gui2_保存:="保存"
-
-  t_welcome_main:="欢迎使用 KMCounter"
-  t_welcome_sub:="KMCounter 将常驻托盘菜单为你统计所需信息。`n点击托盘图标即可查看统计结果。"
-}
-return
-
 Welcome:
 IfNotExist, KMCounter.ini
-{
-  t:="KMCounter 将常驻托盘菜单为你统计所需信息。`n点击托盘图标即可查看统计结果。"
-  OSDTIP_Pop("欢迎使用 KMCounter", t, -20000, "fm12 fs9", "微软雅黑")
-}
+  OSDTIP_Pop(L_welcome_main, L_welcome_sub, -20000, "fm12 fs9 W320", "微软雅黑")
 return
 
 CreateGui:
@@ -112,18 +65,22 @@ CreateGui:
     {
       ; 创建信息框
       Gui, Add, ListView, % "C" Opt.TextColor " +Grid Count10 -Hdr -HScroll" p, |今日|本周|本月|总计
-      for k1, field in ["鼠标移动", "键盘敲击", "左键点击", "右键点击", "中键点击", "滚轮滚动", "滚轮横滚", "侧键点击", "屏幕尺寸"]
+      for k1, field in [L_gui1_鼠标移动, L_gui1_键盘敲击
+                      , L_gui1_左键点击, L_gui1_右键点击, L_gui1_中键点击
+                      , L_gui1_滚轮滚动, L_gui1_滚轮横滚
+                      , L_gui1_侧键点击
+                      , L_gui1_屏幕尺寸]
         LV_Add("", field)
 
       LV_ModifyCol(2, "Right")                            ; 文本右对齐
       LV_ModifyCol(3, "Right")
       LV_ModifyCol(4, "Right")
       LV_ModifyCol(5, "Right")
-      LV_ModifyCol(1, 60)                                 ; 1 列宽度设为60
+      LV_ModifyCol(1, 70)                                 ; 1 列宽度设为70
       LV_ModifyCol(3, 0)                                  ; 3、4 列宽度设为0
       LV_ModifyCol(4, 0)
-      LV_ModifyCol(2, (control.w-60-Ceil(22*scale))//2)   ; 2、5 列平分剩下的宽度
-      LV_ModifyCol(5, (control.w-60-Ceil(22*scale))//2)   ; 即使关闭了 DPIScale 滚动条的宽度依然受影响 所以需要乘以系数
+      LV_ModifyCol(2, (control.w-70-Ceil(22*scale))//2)   ; 2、5 列平分剩下的宽度
+      LV_ModifyCol(5, (control.w-70-Ceil(22*scale))//2)   ; 即使关闭了 DPIScale 滚动条的宽度依然受影响 所以需要乘以系数
     }
   }
   Gui, Show, Hide
@@ -135,6 +92,7 @@ WheelDown::
 WheelUp::
 PgDn::
 PgUp::
+  Critical, On
   ; 设置默认值
   NonNull(history, today)
   switch, A_ThisHotkey
@@ -152,6 +110,7 @@ PgUp::
   }
   date := history
   gosub, ShowHeatMap
+  Critical, Off
 return
 #If
 
@@ -167,40 +126,40 @@ CreateGui2:
   Gui, 2:Color, 444444, 444444
 
   Gui, 2:Font, s19 Bold cEEEEEE, 微软雅黑
-  Gui, 2:Add, Text, x16 y24 w206 h30 +0x200, 屏幕尺寸
+  Gui, 2:Add, Text, x16 y24 w206 h30 +0x200, %L_gui2_屏幕尺寸%
   Gui, 2:Font
   Gui, 2:Font, cEEEEEE, 微软雅黑
-  Gui, 2:Add, Text, x16 y64 w206 h23, 设置显示器的真实尺寸。
-  Gui, 2:Add, Text, x16 y104 w85 h23, 屏幕宽:
-  Gui, 2:Add, Text, x16 y136 w85 h23, 屏幕高:
+  Gui, 2:Add, Text, x16 y64 w206 h23, %L_gui2_sub1%
+  Gui, 2:Add, Text, x16 y104 w85 h23, %L_gui2_屏幕宽%:
+  Gui, 2:Add, Text, x16 y136 w85 h23, %L_gui2_屏幕高%:
   Gui, 2:Add, Edit, x104 y102 w85 h19 Number Limit -Multi vdw, % devicecaps.w
   Gui, 2:Add, Edit, x104 y134 w85 h19 Number Limit -Multi vdh, % devicecaps.h
-  Gui, 2:Add, Text, x197 y104 w30 h23, 毫米
-  Gui, 2:Add, Text, x197 y136 w30 h23, 毫米
+  Gui, 2:Add, Text, x197 y104 w30 h23, %L_gui2_毫米%
+  Gui, 2:Add, Text, x197 y136 w30 h23, %L_gui2_毫米%
 
   Gui, 2:Font, s19 Bold cEEEEEE, 微软雅黑
-  Gui, 2:Add, Text, x16 y184 w206 h30 +0x200, 键盘布局
+  Gui, 2:Add, Text, x16 y184 w206 h30 +0x200, %L_gui2_键盘布局%
   Gui, 2:Font
   Gui, 2:Font, cEEEEEE, 微软雅黑
-  Gui, 2:Add, Text, x16 y224 w206 h23, 设置键盘热力图的尺寸。
-  Gui, 2:Add, Text, x16 y264 w85 h23, 键宽:
-  Gui, 2:Add, Text, x16 y296 w85 h23, 键高:
-  Gui, 2:Add, Text, x16 y328 w85 h23, 键间距:
-  Gui, 2:Add, Text, x16 y360 w85 h23, 区域水平间距:
-  Gui, 2:Add, Text, x16 y392 w85 h23, 区域垂直间距:
+  Gui, 2:Add, Text, x16 y224 w206 h23, %L_gui2_sub2%
+  Gui, 2:Add, Text, x16 y264 w85 h23, %L_gui2_键宽%:
+  Gui, 2:Add, Text, x16 y296 w85 h23, %L_gui2_键高%:
+  Gui, 2:Add, Text, x16 y328 w85 h23, %L_gui2_键间距%:
+  Gui, 2:Add, Text, x16 y360 w85 h23, %L_gui2_区域水平间距%:
+  Gui, 2:Add, Text, x16 y392 w85 h23, %L_gui2_区域垂直间距%:
   Gui, 2:Add, Edit, x104 y262 w85 h19 Number Limit -Multi vlkw, % layout.kw
   Gui, 2:Add, Edit, x104 y294 w85 h19 Number Limit -Multi vlkh, % layout.kh
   Gui, 2:Add, Edit, x104 y326 w85 h19 Number Limit -Multi vlks, % layout.ks
   Gui, 2:Add, Edit, x104 y358 w85 h19 Number Limit -Multi vlkhs, % layout.khs
   Gui, 2:Add, Edit, x104 y390 w85 h19 Number Limit -Multi vlkvs, % layout.kvs
-  Gui, 2:Add, Text, x197 y264 w30 h23, 像素
-  Gui, 2:Add, Text, x197 y296 w30 h23, 像素
-  Gui, 2:Add, Text, x197 y328 w30 h23, 像素
-  Gui, 2:Add, Text, x197 y360 w30 h23, 像素
-  Gui, 2:Add, Text, x197 y392 w30 h23, 像素
+  Gui, 2:Add, Text, x197 y264 w30 h23, %L_gui2_像素%
+  Gui, 2:Add, Text, x197 y296 w30 h23, %L_gui2_像素%
+  Gui, 2:Add, Text, x197 y328 w30 h23, %L_gui2_像素%
+  Gui, 2:Add, Text, x197 y360 w30 h23, %L_gui2_像素%
+  Gui, 2:Add, Text, x197 y392 w30 h23, %L_gui2_像素%
 
-  Gui, 2:Add, Button, x16 y440 w80 h30 gCancelSetting hwndhBT1, 取消
-  Gui, 2:Add, Button, x140 y440 w80 h30 gSaveSetting hwndhBT2, 保存
+  Gui, 2:Add, Button, x16 y440 w80 h30 gCancelSetting hwndhBT1, %L_gui2_取消%
+  Gui, 2:Add, Button, x140 y440 w80 h30 gSaveSetting hwndhBT2, %L_gui2_保存%
 
   Opt1 := [0, 0xff708090, , 0xffeeeeee, 5, 0xff444444]  ; 按钮正常时候的样子
   Opt2 := [0, 0xffeeeeee, , 0xff708090, 5, 0xff444444]  ; 鼠标在按钮上的样子
@@ -234,14 +193,14 @@ return
 CreateMenu:
 {
   Menu, Tray, NoStandard                           ; 不显示 ahk 自己的菜单
-  Menu, Tray, Add, 统计, MenuHandler               ; 创建新菜单项
-  Menu, Tray, Default, 统计                        ; 将统计设为默认项
-  Menu, Tray, Add, 设置, MenuHandler
+  Menu, Tray, Add, %L_menu_统计%,     MenuHandler  ; 创建新菜单项
+  Menu, Tray, Add, %L_menu_设置%,     MenuHandler
   Menu, Tray, Add                                  ; 分隔符
-  Menu, Tray, Add, 开机启动, MenuHandler
-  Menu, Tray, Add, 布局定制, MenuHandler
+  Menu, Tray, Add, %L_menu_开机启动%, MenuHandler
+  Menu, Tray, Add, %L_menu_布局定制%, MenuHandler
   Menu, Tray, Add
-  Menu, Tray, Add, 退出, MenuHandler
+  Menu, Tray, Add, %L_menu_退出%,     MenuHandler
+  Menu, Tray, Default, %L_menu_统计%               ; 将统计设为默认项
 
   ico1:="iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA4klEQVQ4T6XToU5DQRCF4e+6VvQBeIVCQuqQYCENinoMDQkCgcJQ"
   ico1.="dE0FqkhEkzYoBAEErrwA8DqQSe5NNrTcbtNRK3b+nTnnbGHDKsr+AW4yWD3M0nsV4Afb+M6AnGIPZzhIAdW5jrGP9+RCa11AExMc"
@@ -263,24 +222,24 @@ CreateMenu:
   ico3:=Base64PNG_to_HICON(ico3)
 
   if (!A_IsCompiled)
-    Menu, Tray, Icon, resouces\%APPName%.ico       ; 加载托盘图标
-  Menu, Tray, Icon, 统计, HICON:%ico1%             ; 加载菜单图标
-  Menu, Tray, Icon, 设置, HICON:%ico2%
-  Menu, Tray, Icon, 布局定制, HICON:%ico3%
+    Menu, Tray, Icon, resouces\%APPName%.ico         ; 加载托盘图标
+  Menu, Tray, Icon, %L_menu_统计%,     HICON:%ico1%  ; 加载菜单图标
+  Menu, Tray, Icon, %L_menu_设置%,     HICON:%ico2%
+  Menu, Tray, Icon, %L_menu_布局定制%, HICON:%ico3%
 
-  IfExist, %A_Startup%\%APPName%.Lnk               ; 检测启动文件夹中是否有快捷方式来确定是否勾选自启
-    Menu, Tray, Check, 开机启动
+  IfExist, %A_Startup%\%APPName%.Lnk                 ; 检测启动文件夹中是否有快捷方式来确定是否勾选自启
+    Menu, Tray, Check, %L_menu_开机启动%
 }
 return
 
 MenuHandler:
-  if (A_ThisMenuItem = "统计")
+  if (A_ThisMenuItem = L_menu_统计)
   {
     date := today
     gosub, ShowHeatMap
   }
 
-  if (A_ThisMenuItem = "设置")
+  if (A_ThisMenuItem = L_menu_设置)
   {
     GuiControl, 2:, dw,   % devicecaps.w
     GuiControl, 2:, dh,   % devicecaps.h
@@ -289,48 +248,55 @@ MenuHandler:
     GuiControl, 2:, lks,  % layout.ks
     GuiControl, 2:, lkhs, % layout.khs
     GuiControl, 2:, lkvs, % layout.kvs
-    Gui, 2:Show, , 设置
+    Gui, 2:Show, , %L_gui2_设置%
   }
 
-  if (A_ThisMenuItem = "开机启动")
+  if (A_ThisMenuItem = L_menu_开机启动)
   {
     IfExist, %A_Startup%\%APPName%.Lnk
     {
       FileDelete, %A_Startup%\%APPName%.Lnk
-      Menu, Tray, UnCheck, 开机启动
+      Menu, Tray, UnCheck, %L_menu_开机启动%
     }
     else
     {
       FileCreateShortcut, %A_ScriptFullPath%, %A_Startup%\%APPName%.Lnk, %A_ScriptDir%
-      Menu, Tray, Check, 开机启动
+      Menu, Tray, Check, %L_menu_开机启动%
     }
   }
 
-  if (A_ThisMenuItem = "布局定制")
+  if (A_ThisMenuItem = L_menu_布局定制)
   {
     Run, https://github.com/telppa/KMCounter
     Run, https://www.autoahk.com/archives/35147
   }
 
-  if (A_ThisMenuItem = "退出")
+  if (A_ThisMenuItem = L_menu_退出)
     ExitApp
 return
 
 ShowHeatMap:
-  ; 一定要先 Show 再设置按键颜色，否则不定时出错
-  Gui, Show, , % APPName " v" ver " | 当前显示数据 - " date
-
+{
+  ; 一定要先 Show 再设置按键颜色，否则不定时出错  
+  Gui, Show, , % Format("{1} v{2} | {3} - {4}", APPName, ver, L_gui1_当前显示数据, date)
   ; 先显示文字统计信息
-  LV_Modify(1, , , Format("{:.2f} 米", mouse[date].move), , , Format("{:.2f} 米", mouse.total.move))
-  LV_Modify(2, , , keyboard[date].keystrokes " 次",       , , keyboard.total.keystrokes " 次")
-  LV_Modify(3, , , mouse[date].lbcount " 次",             , , mouse.total.lbcount " 次")
-  LV_Modify(4, , , mouse[date].rbcount " 次",             , , mouse.total.rbcount " 次")
-  LV_Modify(5, , , mouse[date].mbcount " 次",             , , mouse.total.mbcount " 次")
-  LV_Modify(6, , , mouse[date].wheel " 次",               , , mouse.total.wheel " 次")
-  LV_Modify(7, , , mouse[date].hwheel " 次",              , , mouse.total.hwheel " 次")
-  LV_Modify(8, , , mouse[date].xbcount " 次",             , , mouse.total.xbcount " 次")
-  LV_Modify(9, , , Format("{:.1f} 寸", devicecaps.size))
-
+  LV_Modify(1,,, Format("{:.2f} {2}", mouse[date].move,          L_gui1_米),,
+               , Format("{:.2f} {2}", mouse.total.move,          L_gui1_米))
+  LV_Modify(2,,, Format("{1} {2}",    keyboard[date].keystrokes, L_gui1_次),,
+               , Format("{1} {2}",    keyboard.total.keystrokes, L_gui1_次))
+  LV_Modify(3,,, Format("{1} {2}",    mouse[date].lbcount,       L_gui1_次),,
+               , Format("{1} {2}",    mouse.total.lbcount,       L_gui1_次))
+  LV_Modify(4,,, Format("{1} {2}",    mouse[date].rbcount,       L_gui1_次),,
+               , Format("{1} {2}",    mouse.total.rbcount,       L_gui1_次))
+  LV_Modify(5,,, Format("{1} {2}",    mouse[date].mbcount,       L_gui1_次),,
+               , Format("{1} {2}",    mouse.total.mbcount,       L_gui1_次))
+  LV_Modify(6,,, Format("{1} {2}",    mouse[date].wheel,         L_gui1_次),,
+               , Format("{1} {2}",    mouse.total.wheel,         L_gui1_次))
+  LV_Modify(7,,, Format("{1} {2}",    mouse[date].hwheel,        L_gui1_次),,
+               , Format("{1} {2}",    mouse.total.hwheel,        L_gui1_次))
+  LV_Modify(8,,, Format("{1} {2}",    mouse[date].xbcount,       L_gui1_次),,
+               , Format("{1} {2}",    mouse.total.xbcount,       L_gui1_次))
+  LV_Modify(9,,, Format("{:.1f} {2}", devicecaps.size,           L_gui1_寸))
   ; 有了一定的数据量后再显示图案，同时可以避免初始颜色显示错误
   if (keyboard[date].keystrokes >= 100)
   {
@@ -356,22 +322,24 @@ ShowHeatMap:
   }
   else
   {
+    ; 数据量不足显示提示框
     for k, count in keyboard[date]
       CtlColors.Change(%k%, Opt.BackgroundColor, Opt.TextColor)
-    MsgBox 0x42040, , 今日按键次数较少，故暂未生成按键热点图。
+    MsgBox 0x42040, , %L_gui1_msgbox%
   }
+}
 return
 
 ; 鼠标移动到按键上时，显示对应按键敲击次数。
 WM_MOUSEMOVE()
 {
   static init:=OnMessage(0x200, "WM_MOUSEMOVE")
-  global date
+  global date, L_gui1_次
   if (A_Gui = 1)
   {
     key:=SubStr(A_GuiControl, 4)
     if (keyboard[date].HasKey(key))
-      btt(keyboard[date][key] " 次",,,,"Style2")
+      btt(keyboard[date][key] " " L_gui1_次,,,,"Style2")
     else
       btt()
   }
@@ -791,6 +759,95 @@ LoadControlList(layout:="")
 
   return, list
 }
+
+MultiLanguage:
+  if (A_Language="0804")
+  {
+    L_menu_统计:="统计"
+    L_menu_设置:="设置"
+    L_menu_开机启动:="开机启动"
+    L_menu_布局定制:="布局定制"
+    L_menu_退出:="退出"
+
+    L_gui1_当前显示数据:="当前显示数据"
+    L_gui1_鼠标移动:="鼠标移动"
+    L_gui1_键盘敲击:="键盘敲击"
+    L_gui1_左键点击:="左键点击"
+    L_gui1_右键点击:="右键点击"
+    L_gui1_中键点击:="中键点击"
+    L_gui1_滚轮滚动:="滚轮滚动"
+    L_gui1_滚轮横滚:="滚轮横滚"
+    L_gui1_侧键点击:="侧键点击"
+    L_gui1_屏幕尺寸:="屏幕尺寸"
+    L_gui1_米:="米"
+    L_gui1_次:="次"
+    L_gui1_寸:="寸"
+    L_gui1_msgbox:="今日按键次数较少，故暂未生成按键热点图。"
+
+    L_gui2_设置:="设置"
+    L_gui2_屏幕尺寸:="屏幕尺寸"
+    L_gui2_sub1:="设置显示器的真实尺寸。"
+    L_gui2_屏幕宽:="屏幕宽"
+    L_gui2_屏幕高:="屏幕高"
+    L_gui2_毫米:="毫米"
+    L_gui2_键盘布局:="键盘布局"
+    L_gui2_sub2:="设置键盘热力图的尺寸。"
+    L_gui2_键宽:="键宽"
+    L_gui2_键高:="键高"
+    L_gui2_键间距:="键间距"
+    L_gui2_区域水平间距:="区域水平间距"
+    L_gui2_区域垂直间距:="区域垂直间距"
+    L_gui2_像素:="像素"
+    L_gui2_取消:="取消"
+    L_gui2_保存:="保存"
+
+    L_welcome_main:="欢迎使用 KMCounter"
+    L_welcome_sub:="KMCounter 将常驻托盘菜单为你统计所需信息。`n点击托盘图标即可查看统计结果。"
+  }
+  else
+  {
+    L_menu_统计:="Statistics"
+    L_menu_设置:="Setting"
+    L_menu_开机启动:="Start Up"
+    L_menu_布局定制:="Custom Layout"
+    L_menu_退出:="Exit"
+
+    L_gui1_当前显示数据:="Date"
+    L_gui1_鼠标移动:="MouseMove"
+    L_gui1_键盘敲击:="Keystrokes"
+    L_gui1_左键点击:="LButton"
+    L_gui1_右键点击:="RButton"
+    L_gui1_中键点击:="MButton"
+    L_gui1_滚轮滚动:="Wheel"
+    L_gui1_滚轮横滚:="HWheel"
+    L_gui1_侧键点击:="XButton"
+    L_gui1_屏幕尺寸:="Monitor"
+    L_gui1_米:="m"
+    L_gui1_次:="  "
+    L_gui1_寸:="inch"
+    L_gui1_msgbox:="The number of keystrokes is too low, keyboard heatmap is not generated yet."
+
+    L_gui2_设置:="Setting"
+    L_gui2_屏幕尺寸:="Monitor"
+    L_gui2_sub1:="Set the real size of the monitor."
+    L_gui2_屏幕宽:="Width"
+    L_gui2_屏幕高:="Height"
+    L_gui2_毫米:="mm"
+    L_gui2_键盘布局:="Layout"
+    L_gui2_sub2:="Set the size of the heatmap."
+    L_gui2_键宽:="Key Width"
+    L_gui2_键高:="Key Height"
+    L_gui2_键间距:="Key Spacing"
+    L_gui2_区域水平间距:="HSpacing"
+    L_gui2_区域垂直间距:="VSpacing"
+    L_gui2_像素:="px"
+    L_gui2_取消:="Cancel"
+    L_gui2_保存:="Save"
+
+    L_welcome_main:="Welcome to KMCounter"
+    L_welcome_sub:="KMCounter will stay in the tray menu for statistics.`nClick the tray icon to view the results."
+  }
+return
 
 #Include <OSDTIP>
 #Include <Class_CtlColors>
