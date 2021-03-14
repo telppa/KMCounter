@@ -39,7 +39,7 @@ Efficient and beautiful, statistics and display the usage of keyboard and mouse.
 * KMCounter 使用钩子统计键鼠使用情况，所以杀软可能会误报风险，加白名单即可。  
 
 ## Download (下载)  
-* ver 3.0
+* ver 3.0  
 [Github Releases](https://github.com/telppa/KMCounter/releases)  
 [蓝奏云](https://ahk.lanzous.com/iOyjQmxe7of)  
 
