@@ -1,6 +1,6 @@
 # KMCounter  
-Efficient and beautiful, statistics and display the usage of keyboard and mouse.  
-开源免费、高效美观，统计并显示键盘与鼠标使用情况的工具。  
+Use heatmap to show mouse and keyboard usage.  
+使用热力图显示鼠标与键盘使用情况的工具。  
 
 ## Usage (用法)  
 * After running, KMCounter will stay in the tray menu for statistics, click the tray icon to view the results when needed.  
@@ -35,13 +35,13 @@ Efficient and beautiful, statistics and display the usage of keyboard and mouse.
 > 不写系统不留垃圾。  
 
 ## Note (注意)  
-* KMCounter use hook to statistics keyboard and mouse info, so antivirus software may be false alarm risk, just add to the trust list.  
+* KMCounter use hook to statistics mouse and keyboard info, so antivirus may be false alarm risk, just add to the trust list.  
 * KMCounter 使用钩子统计键鼠使用情况，所以杀软可能会误报风险，加白名单即可。  
 
 ## Download (下载)  
-* ver 3.0  
+* ver 3.1  
 [Github Releases](https://github.com/telppa/KMCounter/releases)  
-[蓝奏云](https://ahk.lanzous.com/iOyjQmxe7of)  
+[蓝奏云](https://ahk.lanzous.com/iKEEHmy51bi)  
 
 ## Screenshots (截图)  
 ![](https://raw.githubusercontent.com/telppa/KMCounter/main/screenshots/3.gif)  
