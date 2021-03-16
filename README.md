@@ -39,9 +39,9 @@ Use heatmap to show mouse and keyboard usage.
 * KMCounter 使用钩子统计键鼠使用情况，所以杀软可能会误报风险，加白名单即可。  
 
 ## Download (下载)  
-* ver 3.1  
+* ver 3.2  
 [Github Releases](https://github.com/telppa/KMCounter/releases)  
-[蓝奏云](https://ahk.lanzous.com/iKEEHmy51bi)  
+[蓝奏云](https://ahk.lanzous.com/icynmmzh54d)  
 
 ## Screenshots (截图)  
 ![](https://raw.githubusercontent.com/telppa/KMCounter/main/screenshots/3.gif)  

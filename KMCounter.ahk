@@ -7,7 +7,7 @@ https://www.autoahk.com/archives/35147
 #SingleInstance Force
 SetBatchLines, -1
 
-global APPName:="KMCounter", ver:=3.1
+global APPName:="KMCounter", ver:=3.2
      , today:=SubStr(A_Now, 1, 8)
      , DataStorageDays:=30
      , firstday:=EnvAdd(today, -DataStorageDays, "Days", 1, 8)
@@ -398,6 +398,9 @@ LoadData(date)
   ; 历史数据不存在则返回 false
   if (!SavedSectionNames.HasKey(date) and date!=today)
     return, false
+  ; 今日数据已存在则返回 true
+  if (date=today and (IsObject(mouse[today]) or IsObject(keyboard[today])))
+    return, true
 
   ; 获取屏幕信息
   devicecaps.w := IniRead("KMCounter.ini", "devicecaps", "w", " ")            ; 传空格给最后一个参数才能让默认值变空值（空格）
