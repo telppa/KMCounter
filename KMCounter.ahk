@@ -7,10 +7,10 @@ https://www.autoahk.com/archives/35147
 #SingleInstance Force
 SetBatchLines, -1
 
-global APPName:="KMCounter", ver:=3.2
+global APPName:="KMCounter", ver:=3.5
      , today:=SubStr(A_Now, 1, 8)
-     , DataStorageDays:=30
-     , firstday:=EnvAdd(today, -DataStorageDays, "Days", 1, 8)
+     , tomorrow:=EnvAdd(today, 1, "Days", 1, 8)
+     , DataStorageDays, firstday
      , devicecaps:={}, layout:={}
      , hHookMouse, mouse:={}
      , hHookKeyboard, keyboard:={}
@@ -27,7 +27,7 @@ HookMouse()                             ; 鼠标钩子
 HookKeyboard()                          ; 键盘钩子
 
 SetTimer, Reload, % countdown()         ; 设置一个计时器用于跨夜时重启进程以便保存当日数据并开始新的一天
-OnExit("ExitFunc")                      ; 退出时在这里卸载钩子保存参数
+OnExit("ExitFunc")                      ; 退出时在这里卸载钩子并保存参数
 
 return
 
@@ -65,8 +65,10 @@ CreateGui1:
     }
     else if (control.Hwnd="Message")
     {
+      ; 增加 v变量 ，形如 “msgMessage” 。
+      p.=" vmsg" control.Hwnd
       ; 创建信息框
-      Gui, Add, ListView, % "C" Opt.TextColor " +Grid Count10 -Hdr -HScroll" p, |今日|本周|本月|总计
+      Gui, Add, ListView, % "C" Opt.TextColor " +Grid Count10 -Hdr -HScroll" p, % L_gui1_LV标题
       for k1, field in [L_gui1_鼠标移动, L_gui1_键盘敲击
                       , L_gui1_左键点击, L_gui1_右键点击, L_gui1_中键点击
                       , L_gui1_滚轮滚动, L_gui1_滚轮横滚
@@ -89,27 +91,36 @@ CreateGui1:
 return
 
 ; 统计界面下，滚轮与翻页键切换历史回忆。
-#If (WinActive("ahk_id " hWin) and MouseGetClassNN()!="SysListView321")
+#If (WinActive("ahk_id " hWin))
 WheelDown::
 WheelUp::
 PgDn::
 PgUp::
+Down::
+Up::
   Critical
   ; 设置默认值
   NonNull(history, today)
-  loop, % DataStorageDays
+  loop, % DataStorageDays+1
   {
     switch, A_ThisHotkey
     {
-      case, "WheelDown","PgDn": history:=EnvAdd(history, -1, "Days", 1, 8)  ; 前一天
-      case, "WheelUp","PgUp":   history:=EnvAdd(history,  1, "Days", 1, 8)  ; 后一天
+      case, "WheelDown","PgDn","Down": history:=EnvAdd(history, -1, "Days", 1, 8)  ; 前一天
+      case, "WheelUp","PgUp","Up":     history:=EnvAdd(history,  1, "Days", 1, 8)  ; 后一天
     }
-    ; 日期永远在今天与第一天之间循环
-    if (history > today)
+    ; 日期永远在今天、总计、第一天之间循环
+    if (history > tomorrow)
       history := firstday
     if (history < firstday)
-      history := today
+      history := tomorrow
 
+    ; 显示全部数据
+    if (history = tomorrow)
+    {
+      date := "Total"
+      gosub, ShowHeatMap
+      break
+    }
     ; 找到历史数据，并且历史数据与当前显示数据不同，则刷新
     if (LoadData(history) and date!=history)
     {
@@ -133,40 +144,57 @@ CreateGui2:
   Gui, 2:Color, 444444, 444444
 
   Gui, 2:Font, s19 Bold cEEEEEE, 微软雅黑
-  Gui, 2:Add, Text, x16 y24 w206 h30 +0x200, %L_gui2_屏幕尺寸%
+  Gui, 2:Add, Text, x16 y24 w216 h30 +0x200, %L_gui2_历史数据%
   Gui, 2:Font
   Gui, 2:Font, cEEEEEE, 微软雅黑
-  Gui, 2:Add, Text, x16 y64 w206 h23, %L_gui2_sub1%
-  Gui, 2:Add, Text, x16 y104 w85 h23, %L_gui2_屏幕宽%:
-  Gui, 2:Add, Text, x16 y136 w85 h23, %L_gui2_屏幕高%:
-  Gui, 2:Add, Edit, x104 y102 w85 h19 Number Limit -Multi vdw, % devicecaps.w
-  Gui, 2:Add, Edit, x104 y134 w85 h19 Number Limit -Multi vdh, % devicecaps.h
-  Gui, 2:Add, Text, x197 y104 w30 h23, %L_gui2_毫米%
-  Gui, 2:Add, Text, x197 y136 w30 h23, %L_gui2_毫米%
+  Gui, 2:Add, Text, x16 yp+40 w216 h23, %L_gui2_sub1%
+
+  Gui, 2:Add, Text, x16 yp+40 w85 h23, %L_gui2_存储%:
+  Gui, 2:Add, Edit, x104 yp-2 w85 h19 Number Limit -Multi vdsd, % DataStorageDays
+  Gui, 2:Add, Text, x197 yp+2 w30 h23, %L_gui2_天%
 
   Gui, 2:Font, s19 Bold cEEEEEE, 微软雅黑
-  Gui, 2:Add, Text, x16 y184 w206 h30 +0x200, %L_gui2_键盘布局%
+  Gui, 2:Add, Text, x16 yp+48 w216 h30 +0x200, %L_gui2_屏幕尺寸%
   Gui, 2:Font
   Gui, 2:Font, cEEEEEE, 微软雅黑
-  Gui, 2:Add, Text, x16 y224 w206 h23, %L_gui2_sub2%
-  Gui, 2:Add, Text, x16 y264 w85 h23, %L_gui2_键宽%:
-  Gui, 2:Add, Text, x16 y296 w85 h23, %L_gui2_键高%:
-  Gui, 2:Add, Text, x16 y328 w85 h23, %L_gui2_键间距%:
-  Gui, 2:Add, Text, x16 y360 w85 h23, %L_gui2_区域水平间距%:
-  Gui, 2:Add, Text, x16 y392 w85 h23, %L_gui2_区域垂直间距%:
-  Gui, 2:Add, Edit, x104 y262 w85 h19 Number Limit -Multi vlkw, % layout.kw
-  Gui, 2:Add, Edit, x104 y294 w85 h19 Number Limit -Multi vlkh, % layout.kh
-  Gui, 2:Add, Edit, x104 y326 w85 h19 Number Limit -Multi vlks, % layout.ks
-  Gui, 2:Add, Edit, x104 y358 w85 h19 Number Limit -Multi vlkhs, % layout.khs
-  Gui, 2:Add, Edit, x104 y390 w85 h19 Number Limit -Multi vlkvs, % layout.kvs
-  Gui, 2:Add, Text, x197 y264 w30 h23, %L_gui2_像素%
-  Gui, 2:Add, Text, x197 y296 w30 h23, %L_gui2_像素%
-  Gui, 2:Add, Text, x197 y328 w30 h23, %L_gui2_像素%
-  Gui, 2:Add, Text, x197 y360 w30 h23, %L_gui2_像素%
-  Gui, 2:Add, Text, x197 y392 w30 h23, %L_gui2_像素%
+  Gui, 2:Add, Text, x16 yp+40 w216 h23, %L_gui2_sub2%
 
-  Gui, 2:Add, Button, x16 y440 w80 h30 gCancelSetting hwndhBT1, %L_gui2_取消%
-  Gui, 2:Add, Button, x140 y440 w80 h30 gSaveSetting hwndhBT2, %L_gui2_保存%
+  Gui, 2:Add, Text, x16 yp+40 w85 h23, %L_gui2_屏幕宽%:
+  Gui, 2:Add, Edit, x104 yp-2 w85 h19 Number Limit -Multi vdw, % devicecaps.w
+  Gui, 2:Add, Text, x197 yp+2 w30 h23, %L_gui2_毫米%
+
+  Gui, 2:Add, Text, x16 yp+32 w85 h23, %L_gui2_屏幕高%:
+  Gui, 2:Add, Edit, x104 yp-2 w85 h19 Number Limit -Multi vdh, % devicecaps.h
+  Gui, 2:Add, Text, x197 yp+2 w30 h23, %L_gui2_毫米%
+
+  Gui, 2:Font, s19 Bold cEEEEEE, 微软雅黑
+  Gui, 2:Add, Text, x16 yp+48 w216 h30 +0x200, %L_gui2_键盘布局%
+  Gui, 2:Font
+  Gui, 2:Font, cEEEEEE, 微软雅黑
+  Gui, 2:Add, Text, x16 yp+40 w216 h23, %L_gui2_sub3%
+
+  Gui, 2:Add, Text, x16 yp+40 w85 h23, %L_gui2_键宽%:
+  Gui, 2:Add, Edit, x104 yp-2 w85 h19 Number Limit -Multi vlkw, % layout.kw
+  Gui, 2:Add, Text, x197 yp+2 w30 h23, %L_gui2_像素%
+
+  Gui, 2:Add, Text, x16 yp+32 w85 h23, %L_gui2_键高%:
+  Gui, 2:Add, Edit, x104 yp-2 w85 h19 Number Limit -Multi vlkh, % layout.kh
+  Gui, 2:Add, Text, x197 yp+2 w30 h23, %L_gui2_像素%
+
+  Gui, 2:Add, Text, x16 yp+32 w85 h23, %L_gui2_键间距%:
+  Gui, 2:Add, Edit, x104 yp-2 w85 h19 Number Limit -Multi vlks, % layout.ks
+  Gui, 2:Add, Text, x197 yp+2 w30 h23, %L_gui2_像素%
+
+  Gui, 2:Add, Text, x16 yp+32 w85 h23, %L_gui2_区域水平间距%:
+  Gui, 2:Add, Edit, x104 yp-2 w85 h19 Number Limit -Multi vlkhs, % layout.khs
+  Gui, 2:Add, Text, x197 yp+2 w30 h23, %L_gui2_像素%
+
+  Gui, 2:Add, Text, x16 yp+32 w85 h23, %L_gui2_区域垂直间距%:
+  Gui, 2:Add, Edit, x104 yp-2 w85 h19 Number Limit -Multi vlkvs, % layout.kvs
+  Gui, 2:Add, Text, x197 yp+2 w30 h23, %L_gui2_像素%
+
+  Gui, 2:Add, Button, x16 yp+48 w80 h30 gCancelSetting hwndhBT1, %L_gui2_取消%
+  Gui, 2:Add, Button, x140 yp+0 w80 h30 gSaveSetting hwndhBT2, %L_gui2_保存%
 
   Opt1 := [0, 0xff708090, , 0xffeeeeee, 5, 0xff444444]  ; 按钮正常时候的样子
   Opt2 := [0, 0xffeeeeee, , 0xff708090, 5, 0xff444444]  ; 鼠标在按钮上的样子
@@ -176,7 +204,7 @@ CreateGui2:
   if !(ImageButton.Create(hBT2, Opt1, Opt2, , , Opt5))
     MsgBox, 0, ImageButton Error btn1, % ImageButton.LastError
 
-  Gui, 2:Show, w235 h494 Hide
+  Gui, 2:Show, w235 h622 Hide
 }
 return
 
@@ -188,6 +216,8 @@ return
 
 SaveSetting:
   Gui, 2:Submit
+  ; 限制历史数据存储天数最小值为0，默认值为30。
+  DataStorageDays := NonNull_Ret(dsd, 30, 0)
   UpdateDeviceCaps(dw, dh)
   UpdateLayout(lkw, lkh, lks, lkhs, lkvs)
   ; 直接重启以便更新设置
@@ -201,6 +231,7 @@ return
 CreateMenu:
 {
   Menu, Tray, NoStandard                           ; 不显示 ahk 自己的菜单
+  Menu, Tray, Tip, %APPName% v%ver%                ; 托盘提示信息
   Menu, Tray, Add, %L_menu_统计%,     MenuHandler  ; 创建新菜单项
   Menu, Tray, Add, %L_menu_设置%,     MenuHandler
   Menu, Tray, Add                                  ; 分隔符
@@ -338,18 +369,47 @@ ShowHeatMap:
 }
 return
 
-; 鼠标移动到按键上时，显示对应按键敲击次数。
 WM_MOUSEMOVE()
 {
-  static init:=OnMessage(0x200, "WM_MOUSEMOVE")
-  global date, L_gui1_次
+  static init:=OnMessage(0x200, "WM_MOUSEMOVE"), IsMessageMaximized:=0
+  global date, L_gui1_次, ControlList
   if (A_Gui = 1)
   {
-    key:=SubStr(A_GuiControl, 4)
-    if (keyboard[date].HasKey(key))
-      btt(keyboard[date][key] " " L_gui1_次,,,,"Style2")
+    if (A_GuiControl = "msgMessage")
+    {
+      if (IsMessageMaximized = 0)
+      {
+        ; 鼠标移动到信息框时自动放大显示。
+        GuiControl, Move, msgMessage, % "h" layout.kh*6+layout.khs+layout.ks*4
+        ; 显示标题栏。
+        GuiControl, +Hdr, msgMessage
+        ; 此时必须隐藏按键，否则按键轮廓会穿透信息框。
+        for k, v in ControlList.Covered
+          GuiControl, Hide, % "key" v
+        IsMessageMaximized := 1
+      }
+    }
     else
-      btt()
+    {
+      if (IsMessageMaximized = 1)
+      {
+        ; 信息框恢复最小化。
+        GuiControl, Move, msgMessage, % "h" layout.kh
+        ; 隐藏标题栏。
+        GuiControl, -Hdr, msgMessage
+        ; 显示按键。
+        for k, v in ControlList.Covered
+          GuiControl, Show, % "key" v
+        IsMessageMaximized := 0
+      }
+
+      ; 鼠标移动到按键上时，显示对应按键敲击次数。
+      key:=SubStr(A_GuiControl, 4)
+      if (keyboard[date].HasKey(key))
+        btt(keyboard[date][key] " " L_gui1_次,,,,"Style2")
+      else
+        btt()
+    }
   }
   else
     btt()
@@ -368,7 +428,7 @@ return
 
 BlockClick(wParam, lParam, msg, hwnd)
 {
-  if (A_Gui=1 and A_GuiControl!="")
+  if (A_Gui=1)
     return, 0                       ; 必须返回0才能丢掉消息实现屏蔽的效果
 }
 
@@ -382,6 +442,10 @@ ExitFunc(ExitReason, ExitCode)
 
 LoadData(date)
 {
+  ; 获取历史数据存储天数
+  DataStorageDays := IniRead("KMCounter.ini", "history", "storage", 30)
+  firstday        := EnvAdd(today, -DataStorageDays, "Days", 1, 8)
+
   ; 删除超时的历史数据
   SectionNames := StrSplit(IniRead("KMCounter.ini"), "`n", " `t`r`n`v`f")
   SavedSectionNames:={}
@@ -398,8 +462,8 @@ LoadData(date)
   ; 历史数据不存在则返回 false
   if (!SavedSectionNames.HasKey(date) and date!=today)
     return, false
-  ; 今日数据已存在则返回 true
-  if (date=today and (IsObject(mouse[today]) or IsObject(keyboard[today])))
+  ; 历史数据已存在则返回 true
+  if (IsObject(mouse[date]) or IsObject(keyboard[date]))
     return, true
 
   ; 获取屏幕信息
@@ -436,6 +500,8 @@ LoadData(date)
 
 SaveData()
 {
+  ; 保存历史数据存储天数
+  IniWrite(DataStorageDays, "KMCounter.ini", "history", "storage")
   ; 保存屏幕信息
   IniWrite(devicecaps.w,  "KMCounter.ini", "devicecaps", "w")
   IniWrite(devicecaps.h,  "KMCounter.ini", "devicecaps", "h")
@@ -518,8 +584,13 @@ LowLevelKeyboardProc(nCode, wParam, lParam)
     ; vk := NumGet(lParam+0, "UInt")
       Extended := NumGet(lParam+0, 8, "UInt") & 1
     , sc := (Extended<<8) | NumGet(lParam+0, 4, "UInt")
-    , sc := sc = 0x136 ? 0x36 : sc
-    , keyboard[today,   "sc" sc] += 1
+    ; 即使不在布局中的按键依然初始化，使其可被记录
+    if (!keyboard[today].HasKey("sc" sc))
+    {
+      keyboard[today,   "sc" sc] := 0
+      keyboard["total", "sc" sc] := 0
+    }
+      keyboard[today,   "sc" sc] += 1
     , keyboard["total", "sc" sc] += 1
     , keyboard[today,   "keystrokes"] += 1
     , keyboard["total", "keystrokes"] += 1
@@ -553,7 +624,6 @@ getcolors(c1, c2, n)
 
 countdown()
 {
-  tomorrow:=EnvAdd(today, 1, "Days", 1, 14)
   ; 距离明天凌晨 0:00:05 的秒数，+5秒是为了给系统时间不准留点余量
   return, -(EnvSub(tomorrow, A_Now, "Seconds")+5)*1000
 }
@@ -710,7 +780,7 @@ LoadControlList(layout:="")
   list.push({Hwnd:"sc51", Text:",",     x:m.2, y:"",  w:w,  h:h})
   list.push({Hwnd:"sc52", Text:".",     x:m.2, y:"",  w:w,  h:h})
   list.push({Hwnd:"sc53", Text:"/",     x:m.2, y:"",  w:w,  h:h})
-  list.push({Hwnd:"sc54", Text:"Shift", x:m.2, y:"",  w:w5, h:h})
+  list.push({Hwnd:"sc310", Text:"Shift", x:m.2, y:"",  w:w5, h:h})
   ; 第六行
   list.push({Hwnd:"sc29",  Text:"Ctrl",  x:"m", y:m.2, w:w6_1, h:h})
   list.push({Hwnd:"sc347", Text:"Win",   x:m.2, y:"",  w:w6_2, h:h})
@@ -769,6 +839,15 @@ LoadControlList(layout:="")
   , temp3:=h                ; 与 单个按键等高
   list.push({Hwnd:"Message", Text:"",      x:temp1, y:"m", w:temp2, h:temp3})
 
+  ; 信息框放大后会被遮挡的按键列表
+  list.Covered := ["sc338", "sc327", "sc329", "sc339", "sc335", "sc337"  ; 翻页区
+                 , "sc328", "sc331", "sc336", "sc333"                    ; 方向区
+                 , "sc325", "sc309", "sc55",  "sc74"                     ; 小键盘区
+                 , "sc71",  "sc72",  "sc73",  "sc78"
+                 , "sc75",  "sc76",  "sc77"
+                 , "sc79",  "sc80",  "sc81",  "sc284"
+                 , "sc82",  "sc83"]
+
   ; Color 没有 0x 前缀。背景色影响 GUI 信息框 当日按键数据太少时的按键。不影响数据量足够后的按键。
   list.Opt := {Font:"comic sans ms", FontSize:9, BackgroundColor:"EEEEEE", TextColor:"575757"}
 
@@ -785,6 +864,7 @@ MultiLanguage:
     L_menu_退出:="退出"
 
     L_gui1_当前显示数据:="当前显示数据"
+    L_gui1_LV标题:="项目|今日|本周|本月|总计"
     L_gui1_鼠标移动:="鼠标移动"
     L_gui1_键盘敲击:="键盘敲击"
     L_gui1_左键点击:="左键点击"
@@ -800,13 +880,17 @@ MultiLanguage:
     L_gui1_msgbox:="今日按键次数较少，故暂未生成按键热点图。"
 
     L_gui2_设置:="设置"
+    L_gui2_历史数据:="历史数据"
+    L_gui2_sub1:="设置历史数据保留时长。"
+    L_gui2_存储:="存储"
+    L_gui2_天:="天"
     L_gui2_屏幕尺寸:="屏幕尺寸"
-    L_gui2_sub1:="设置显示器的真实尺寸。"
+    L_gui2_sub2:="设置显示器的真实尺寸。"
     L_gui2_屏幕宽:="屏幕宽"
     L_gui2_屏幕高:="屏幕高"
     L_gui2_毫米:="毫米"
     L_gui2_键盘布局:="键盘布局"
-    L_gui2_sub2:="设置键盘热力图的尺寸。"
+    L_gui2_sub3:="设置键盘热力图的尺寸。"
     L_gui2_键宽:="键宽"
     L_gui2_键高:="键高"
     L_gui2_键间距:="键间距"
@@ -823,11 +907,12 @@ MultiLanguage:
   {
     L_menu_统计:="Statistics"
     L_menu_设置:="Setting"
-    L_menu_开机启动:="Start Up"
+    L_menu_开机启动:="Start-Up"
     L_menu_布局定制:="Custom Layout"
     L_menu_退出:="Exit"
 
     L_gui1_当前显示数据:="Date"
+    L_gui1_LV标题:="Item|Today|This Week|This Month|Total"
     L_gui1_鼠标移动:="MouseMove"
     L_gui1_键盘敲击:="Keystrokes"
     L_gui1_左键点击:="LButton"
@@ -840,16 +925,20 @@ MultiLanguage:
     L_gui1_米:="m"
     L_gui1_次:="  "
     L_gui1_寸:="inch"
-    L_gui1_msgbox:="The number of keystrokes is too low, keyboard heatmap is not generated yet."
+    L_gui1_msgbox:="The number of keystrokes is too low, keyboard heatmap not generated yet."
 
     L_gui2_设置:="Setting"
+    L_gui2_历史数据:="History"
+    L_gui2_sub1:="Set the storage time of history data."
+    L_gui2_存储:="Storage"
+    L_gui2_天:="days"
     L_gui2_屏幕尺寸:="Monitor"
-    L_gui2_sub1:="Set the real size of the monitor."
+    L_gui2_sub2:="Set the real size of the monitor."
     L_gui2_屏幕宽:="Width"
     L_gui2_屏幕高:="Height"
     L_gui2_毫米:="mm"
     L_gui2_键盘布局:="Layout"
-    L_gui2_sub2:="Set the size of the heatmap."
+    L_gui2_sub3:="Set the size of the heatmap."
     L_gui2_键宽:="Key Width"
     L_gui2_键高:="Key Height"
     L_gui2_键间距:="Key Spacing"

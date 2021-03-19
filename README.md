@@ -7,8 +7,8 @@ Use heatmap to show mouse and keyboard usage.
 * 运行后，KMCounter 将常驻托盘菜单进行统计，需要时点击托盘图标查看结果。  
 ![](https://raw.githubusercontent.com/telppa/KMCounter/main/screenshots/4.png)  
 
-* On the GUI of statistics, PageUp and PageDown or Mouse Wheel can view the historical statistics.  
-* 在统计界面下，使用 PageUp、PageDown 或 鼠标滚轮 可以查看历史结果。  
+* On the GUI of statistics, PageUp and PageDown or Up and Down or Mouse Wheel can view the historical statistics.  
+* 在统计界面下，使用 翻页键 或 上下键 或 鼠标滚轮 可以查看历史结果。  
 ![](https://raw.githubusercontent.com/telppa/KMCounter/main/screenshots/3.gif)  
 
 ## Features (特性)  
@@ -35,13 +35,13 @@ Use heatmap to show mouse and keyboard usage.
 > 不写系统不留垃圾。  
 
 ## Note (注意)  
-* KMCounter use hook to statistics mouse and keyboard info, so antivirus may be false alarm risk, just add to the trust list.  
+* KMCounter uses the hook to statistics mouse and keyboard info, so antivirus may be a false alarm risk, just add to the trust list.  
 * KMCounter 使用钩子统计键鼠使用情况，所以杀软可能会误报风险，加白名单即可。  
 
 ## Download (下载)  
-* ver 3.2  
+* ver 3.5  
 [Github Releases](https://github.com/telppa/KMCounter/releases)  
-[蓝奏云](https://ahk.lanzous.com/icynmmzh54d)  
+[蓝奏云](https://ahk.lanzous.com/i22G6n3y30d)  
 
 ## Screenshots (截图)  
 ![](https://raw.githubusercontent.com/telppa/KMCounter/main/screenshots/3.gif)  
