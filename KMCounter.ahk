@@ -3,11 +3,18 @@
 https://github.com/telppa/KMCounter
 https://www.autoahk.com/archives/35147
 */
+;编译信息
+;@Ahk2Exe-Bin Unicode 32*
+;@Ahk2Exe-SetName KMCounter
+;@Ahk2Exe-SetVersion 3.7
+;@Ahk2Exe-SetCopyright telppa (2021 - )
+;@Ahk2Exe-SetMainIcon resouces\KMCounter.ico
+
 #NoEnv
 #SingleInstance Force
 SetBatchLines, -1
 
-global APPName:="KMCounter", ver:=3.5
+global APPName:="KMCounter", ver:=3.7
      , today:=SubStr(A_Now, 1, 8)
      , tomorrow:=EnvAdd(today, 1, "Days", 1, 8)
      , DataStorageDays, firstday
@@ -18,7 +25,7 @@ global APPName:="KMCounter", ver:=3.5
 gosub, MultiLanguage                    ; 多语言支持
 gosub, Welcome                          ; 首次使用时显示欢迎信息
 LoadData(today)                         ; 初始化除 hHookMouse hHookKeyboard 的全部全局变量
-gosub, BlockClickOnGui1                 ; 因为键盘热力图是用 Edit 控件画的，所以屏蔽鼠标点击造成其外观改变
+gosub, BlockClickOnGui1                 ; 因为键盘热力图是用 Edit 控件画的，所以屏蔽鼠标点击避免其造成控件外观改变
 gosub, CreateMenu                       ; 创建托盘菜单
 gosub, CreateGui1                       ; 预先创建 GUI1 以便需要时加速显示
 gosub, CreateGui2                       ; 预先创建 GUI2 以便需要时加速显示
@@ -27,6 +34,7 @@ HookMouse()                             ; 鼠标钩子
 HookKeyboard()                          ; 键盘钩子
 
 SetTimer, Reload, % countdown()         ; 设置一个计时器用于跨夜时重启进程以便保存当日数据并开始新的一天
+SetTimer, ReloadHook, % 60000*10        ; 每10分钟重载一次钩子，避免用户的按键映射型钩子的影响
 OnExit("ExitFunc")                      ; 退出时在这里卸载钩子并保存参数
 
 return
@@ -226,6 +234,14 @@ return
 
 Reload:
   Reload
+return
+
+ReloadHook:
+  ; 如果用户的 .ahk 在我们之后运行，并且其中含有 a::b 之类的按键映射，此时就需要重载以便我们的钩子更靠前，才能获取消息。
+  DllCall("UnhookWindowsHookEx", "UInt", hHookMouse)
+  DllCall("UnhookWindowsHookEx", "UInt", hHookKeyboard)
+  HookMouse()
+  HookKeyboard()
 return
 
 CreateMenu:
@@ -539,7 +555,8 @@ LowLevelMouseProc(nCode, wParam, lParam)
 {
   static oldx, oldy, init:=MouseGetPos(oldx, oldy)
   Critical
-  if (nCode>=0)
+  flags := NumGet(lParam+0, 12, "UInt") & 0x1                            ; 物理按下是0，模拟是1。0x1 = 00000001
+  if (nCode>=0 and flags=0)
   {
     switch, wParam
     {
@@ -577,15 +594,13 @@ HookKeyboard()
 LowLevelKeyboardProc(nCode, wParam, lParam)
 {
   Critical
-  ; WM_KEYUP = 0x0101 WM_SYSKEYUP = 0x0105
-  if (nCode>=0 and (wParam = 0x0101 or wParam = 0x0105))
+  flags := NumGet(lParam+0, 8, "UInt") & 0x10                         ; 物理按下是0，模拟是非0。0x10 = 00010000
+  if (nCode>=0 and flags=0 and (wParam = 0x0101 or wParam = 0x0105))  ; WM_KEYUP = 0x0101 WM_SYSKEYUP = 0x0105
   {
-    ; vk 不能区分数字键盘，所以用 sc
-    ; vk := NumGet(lParam+0, "UInt")
-      Extended := NumGet(lParam+0, 8, "UInt") & 1
+    ; vk := NumGet(lParam+0, "UInt")                                  ; vk 不能区分数字键盘，所以用 sc
+      Extended := NumGet(lParam+0, 8, "UInt") & 0x1                   ; 扩展键（即功能键或者数字键盘上的键）是1，否则是0
     , sc := (Extended<<8) | NumGet(lParam+0, 4, "UInt")
-    ; 即使不在布局中的按键依然初始化，使其可被记录
-    if (!keyboard[today].HasKey("sc" sc))
+    if (!keyboard[today].HasKey("sc" sc))                             ; 即使不在布局中的按键依然初始化，使其可被记录
     {
       keyboard[today,   "sc" sc] := 0
       keyboard["total", "sc" sc] := 0

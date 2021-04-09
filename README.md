@@ -22,9 +22,11 @@ Use heatmap to show mouse and keyboard usage.
 > 支持查看键盘信息。  
 > 支持查看单键信息。  
 > 支持查看历史信息。  
+> 支持设置历史时长。
 > 支持设置屏幕尺寸。  
 > 支持设置键盘布局。  
 > 支持设置开机启动。  
+> 支持区分真实模拟。  
 > 支持高分辨率屏幕。  
 > 支持低分辨率屏幕。  
 > 更准确的统计方法。  
@@ -39,9 +41,9 @@ Use heatmap to show mouse and keyboard usage.
 * KMCounter 使用钩子统计键鼠使用情况，所以杀软可能会误报风险，加白名单即可。  
 
 ## Download (下载)  
-* ver 3.5  
+* ver 3.7  
 [Github Releases](https://github.com/telppa/KMCounter/releases)  
-[蓝奏云](https://ahk.lanzous.com/i22G6n3y30d)  
+[蓝奏云](https://ahk.lanzous.com/iK6zunucjqf)  
 
 ## Screenshots (截图)  
 ![](https://raw.githubusercontent.com/telppa/KMCounter/main/screenshots/3.gif)  
