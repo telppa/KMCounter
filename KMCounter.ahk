@@ -261,7 +261,7 @@ CreateMenu:
   ico1.="dE0FqkhEkzYoBAEErrwA8DqQSe5NNrTcbtNRK3b+nTnnbGHDKsr+AW4yWD3M0nsV4Afb+M6AnGIPZzhIAdW5jrGP9+RCa11AExMc"
   ico1.="4xmHdYAjXOEaH9jFPYblBA08/Afo4A13OMcFRrhMRGyHZssAW3jFI8KdyqG/DnxiZxngBXPcrnAknCtSwEk5Xry4qjnYC4AuntDH"
   ico1.="OCMPC4DcIAU7BPxKV8iNcjpYrDnISV/tNhVgihBxnYpP1dt4gl9sRC5dONyGKQAAAABJRU5ErkJggg=="
-  ico1:=Base64PNG_to_HICON(ico1)
+  ico1:=ImagePutHIcon(ico1)
 
   ico2:="iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABVklEQVQ4T63TP0tXcRTH8ZdGTyAcXIJagxYXUQJ1qaUnELaILTqI"
   ico2.="o2L4BzRzaWgogqIlwbaG0jGHyEUI8gkYbQ0tgUtLfOBcuV74haBnuff757zPOZ9zvn0uaH09/MfxuXM2gf3u/S4gjrmU7wriFAts"
@@ -269,12 +269,12 @@ CreateMenu:
   ico2.="Ue0nw6T8FferzH4MtTWIaBEvwr3DX0wV4C2u4mEJ+g2PcdIGJPpYAV4WIDrEnhdgpgCvsNMWMSWc4Bk+pDY8wnEB0oHXpUNKWMan"
   ico2.="tPZ/IkaH2QK8qPobEZ/iT3TqtvEekuYvLOJ3eVyvMpLRLt4jrT2dg/ynv4m4h5FKvz2JcRjAlZrK6HQGkPV5Rnkab5paLv0x9Xic"
   ico2.="vbf/AUZITBFlGQzCAAAAAElFTkSuQmCC"
-  ico2:=Base64PNG_to_HICON(ico2)
+  ico2:=ImagePutHIcon(ico2)
 
   ico3.="iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAgElEQVQ4T2NkoBAwUqifAW6Ajo7Of1IMu3LlClgvigEwQUIGgSyj"
   ico3.="jQFINh9gZGRU+P///y0017jB+FhdwMjIqAdS8P//f2FGRsY+BgaGeGze+f///yW8XtDR0RFnYGBYc+XKFVtsBhAMg1EDGBjIDgNC"
   ico3.="KRBZHiMaSdGMrJbi3AgA8Z51EexVYzAAAAAASUVORK5CYII="
-  ico3:=Base64PNG_to_HICON(ico3)
+  ico3:=ImagePutHIcon(ico3)
 
   if (!A_IsCompiled)
     Menu, Tray, Icon, resouces\%APPName%.ico         ; 加载托盘图标
@@ -969,6 +969,7 @@ MultiLanguage:
 return
 
 #Include <OSDTIP>
+#Include <ImagePut>
 #Include <Class_CtlColors>
 #Include <Class_ImageButton>
 #Include <UseGDIP>
