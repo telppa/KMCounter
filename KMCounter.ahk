@@ -555,6 +555,10 @@ LowLevelMouseProc(nCode, wParam, lParam)
 {
   static oldx, oldy, init:=MouseGetPos(oldx, oldy)
   Critical
+  ; lParam 是一个指针，假设 &lParam = 0x123，而 lParam = 0x456
+  ; 也就是它自身地址是 0x123 ，自身存储的地址是 0x456
+  ; 直接 NumGet(lParam, 12, "UInt") 的话，是把 0x456 这个值按 uint 解析
+  ; 而 NumGet(lParam+0, 12, "UInt") ，是把 0x456 这个地址里面的值按 uint 解析
   flags := NumGet(lParam+0, 12, "UInt") & 0x1                            ; 物理按下是0，模拟是1。0x1 = 00000001
   if (nCode>=0 and flags=0)
   {
