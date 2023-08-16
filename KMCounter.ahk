@@ -1,4 +1,8 @@
 ﻿/*
+已知问题
+更换显示器后尺寸无法自动更新
+*/
+/*
 更新地址
 https://github.com/telppa/KMCounter
 https://www.autoahk.com/archives/35147
