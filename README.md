@@ -43,7 +43,7 @@ Use heatmap to show mouse and keyboard usage.
 ## Download (下载)  
 * ver 3.7  
 [Github Releases](https://github.com/telppa/KMCounter/releases)  
-[蓝奏云](https://ahk.lanzous.com/iK6zunucjqf)  
+[蓝奏云](https://ahk.lanzoux.com/iK6zunucjqf)  
 
 ## Screenshots (截图)  
 ![](https://raw.githubusercontent.com/telppa/KMCounter/main/screenshots/3.gif)  
