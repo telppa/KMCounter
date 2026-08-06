@@ -25,10 +25,12 @@ global APPName:="KMCounter", ver:=3.7
      , devicecaps:={}, layout:={}
      , hHookMouse, mouse:={}
      , hHookKeyboard, keyboard:={}
+     , DateIndex:={}
 
 gosub, MultiLanguage                    ; 多语言支持
 gosub, Welcome                          ; 首次使用时显示欢迎信息
 LoadData(today)                         ; 初始化除 hHookMouse hHookKeyboard 的全部全局变量
+BuildDateIndex()                        ; 扫描一次 INI 建立日期索引
 gosub, BlockClickOnGui1                 ; 因为键盘热力图是用 Edit 控件画的，所以屏蔽鼠标点击避免其造成控件外观改变
 gosub, CreateMenu                       ; 创建托盘菜单
 gosub, CreateGui1                       ; 预先创建 GUI1 以便需要时加速显示
@@ -37,7 +39,7 @@ gosub, CreateGui2                       ; 预先创建 GUI2 以便需要时加�
 HookMouse()                             ; 鼠标钩子
 HookKeyboard()                          ; 键盘钩子
 
-SetTimer, Reload, % countdown()         ; 设置一个计时器用于跨夜时重启进程以便保存当日数据并开始新的一天
+SetTimer, SoftReload, % countdown()      ; 设置一个计时器用于跨夜时软重载（不重启进程，避免弹窗）
 SetTimer, ReloadHook, % 60000*10        ; 每10分钟重载一次钩子，避免用户的按键映射型钩子的影响
 OnExit("ExitFunc")                      ; 退出时在这里卸载钩子并保存参数
 
@@ -113,13 +115,14 @@ Up::
   Critical
   ; 设置默认值
   NonNull(history, today)
+  ; 确定方向：-1=前一天，1=后一天
+  if (A_ThisHotkey == "WheelDown" or A_ThisHotkey == "PgDn" or A_ThisHotkey == "Down")
+    step := -1
+  else
+    step := 1
   loop, % DataStorageDays+1
   {
-    switch, A_ThisHotkey
-    {
-      case, "WheelDown","PgDn","Down": history:=EnvAdd(history, -1, "Days", 1, 8)  ; 前一天
-      case, "WheelUp","PgUp","Up":     history:=EnvAdd(history,  1, "Days", 1, 8)  ; 后一天
-    }
+    history := EnvAdd(history, step, "Days", 1, 8)
     ; 日期永远在今天、总计、第一天之间循环
     if (history > tomorrow)
       history := firstday
@@ -129,13 +132,25 @@ Up::
     ; 显示全部数据
     if (history = tomorrow)
     {
+      ; 离开历史日期时卸载其内存数据，只保留 今天 与 总计
+      if (date != "Total" and date != today)
+      {
+        mouse.Delete(date)
+        keyboard.Delete(date)
+      }
       date := "Total"
       gosub, ShowHeatMap
       break
     }
-    ; 找到历史数据，并且历史数据与当前显示数据不同，则刷新
-    if (LoadData(history) and date!=history)
+    ; 通过索引 O(1) 判断该日期是否有数据（不再全量扫描 INI），有数据且与当前显示不同才刷新
+    if (DateIndex.HasKey(history) and LoadData(history) and date!=history)
     {
+      ; 离开历史日期时卸载其内存数据，只保留 今天 与 总计
+      if (date != "Total" and date != today)
+      {
+        mouse.Delete(date)
+        keyboard.Delete(date)
+      }
       date := history
       gosub, ShowHeatMap
       break
@@ -240,6 +255,42 @@ Reload:
   Run, %A_ScriptFullPath%
   Sleep 500
   ExitApp
+return
+
+SoftReload:
+  Critical                                                    ; 防止钩子回调在更新 today 与清理内存的间隙插入执行
+  ; 保存旧日期下的当日数据与总计数据
+  oldToday := today
+  SaveData()
+  ; 关闭所有窗口，模拟重启时的状态
+  Gui, Hide
+  Gui, 2:Hide
+  history := ""
+  date    := ""
+  btt()
+  ; 更新日期
+  today    := SubStr(A_Now, 1, 8)
+  tomorrow := EnvAdd(today, 1, "Days", 1, 8)
+  ; 清空内存中除 总计 以外的所有日期数据（旧数据已保存到磁盘，之后按需重新读取）
+  ; 注意：不能在遍历对象的同时删除其键，先收集键名再删除
+  keysToDelete := []
+  for k, v in mouse
+    if (k != "total")
+      keysToDelete.Push(k)
+  for k, v in keysToDelete
+    mouse.Delete(v)
+  keysToDelete := []
+  for k, v in keyboard
+    if (k != "total")
+      keysToDelete.Push(k)
+  for k, v in keysToDelete
+    keyboard.Delete(v)
+  ; 初始化新一天的数据
+  LoadData(today)
+  ; 重建日期索引（不清理超期数据，保留所有历史记录）
+  BuildDateIndex()
+  ; 安排下一次跨夜软重载
+  SetTimer, SoftReload, % countdown()
 return
 
 ReloadHook:
@@ -470,27 +521,32 @@ ExitFunc(ExitReason, ExitCode)
   SaveData()
 }
 
+BuildDateIndex()
+{
+  ; 读取历史数据存储天数
+  DataStorageDays := IniRead("KMCounter.ini", "history", "storage", 30)
+  firstday        := EnvAdd(today, -DataStorageDays, "Days", 1, 8)
+
+  DateIndex := {}
+  ; 不带 Section 参数读取全部段名（每行一个）
+  SectionNames := StrSplit(IniRead("KMCounter.ini"), "`n", " `t`r`n`v`f")
+  for k, SectionName in SectionNames
+  {
+    if SectionName is integer
+      DateIndex[SectionName] := true
+  }
+  ; 今天的数据永远视为存在（磁盘上没有时由 LoadData 创建）
+  DateIndex[today] := true
+}
+
 LoadData(date)
 {
   ; 获取历史数据存储天数
   DataStorageDays := IniRead("KMCounter.ini", "history", "storage", 30)
   firstday        := EnvAdd(today, -DataStorageDays, "Days", 1, 8)
 
-  ; 删除超时的历史数据
-  SectionNames := StrSplit(IniRead("KMCounter.ini"), "`n", " `t`r`n`v`f")
-  SavedSectionNames:={}
-  for k, SectionName in SectionNames
-  {
-    if SectionName is integer
-    {
-      if (SectionName < firstday)                ; 小于第一天则算超时
-        IniDelete, KMCounter.ini, %SectionName%  ; 因为要省略最后一个参数才能删除整段，所以只能用命令的形式
-      else
-        SavedSectionNames[SectionName]:=""
-    }
-  }
-  ; 历史数据不存在则返回 false
-  if (!SavedSectionNames.HasKey(date) and date!=today)
+  ; 历史数据不存在则返回 false（通过索引 O(1) 判断，无需全量扫描 INI）
+  if (!DateIndex.HasKey(date) and date!=today)
     return, false
   ; 历史数据已存在则返回 true
   if (IsObject(mouse[date]) or IsObject(keyboard[date]))
