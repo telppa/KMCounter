@@ -17,11 +17,14 @@ https://www.autoahk.com/archives/35147
 #NoEnv
 #SingleInstance Force
 SetBatchLines, -1
+SetWorkingDir, %A_ScriptDir%
 
 global APPName:="KMCounter", ver:=3.7
      , today:=SubStr(A_Now, 1, 8)
      , tomorrow:=EnvAdd(today, 1, "Days", 1, 8)
      , DataStorageDays, firstday
+     , IniPath:=A_ScriptDir "\KMCounter.ini", CounterStoreReady:=false
+     , SavedCounterDates:={}, HistoryDates:=[]
      , devicecaps:={}, layout:={}
      , hHookMouse, mouse:={}
      , hHookKeyboard, keyboard:={}
@@ -111,35 +114,13 @@ PgUp::
 Down::
 Up::
   Critical
-  ; 设置默认值
-  NonNull(history, today)
-  loop, % DataStorageDays+1
+  ; Only visit saved dates, today's live counters and Total. No calendar-day loop.
+  direction := (A_ThisHotkey="WheelDown" or A_ThisHotkey="PgDn" or A_ThisHotkey="Down") ? -1 : 1
+  history := NextHistoryDate(history, direction)
+  if (history="Total" or LoadData(history))
   {
-    switch, A_ThisHotkey
-    {
-      case, "WheelDown","PgDn","Down": history:=EnvAdd(history, -1, "Days", 1, 8)  ; 前一天
-      case, "WheelUp","PgUp","Up":     history:=EnvAdd(history,  1, "Days", 1, 8)  ; 后一天
-    }
-    ; 日期永远在今天、总计、第一天之间循环
-    if (history > tomorrow)
-      history := firstday
-    if (history < firstday)
-      history := tomorrow
-
-    ; 显示全部数据
-    if (history = tomorrow)
-    {
-      date := "Total"
-      gosub, ShowHeatMap
-      break
-    }
-    ; 找到历史数据，并且历史数据与当前显示数据不同，则刷新
-    if (LoadData(history) and date!=history)
-    {
-      date := history
-      gosub, ShowHeatMap
-      break
-    }
+    date := history
+    gosub, ShowHeatMap
   }
 return
 #If
@@ -228,8 +209,8 @@ return
 
 SaveSetting:
   Gui, 2:Submit
-  ; 限制历史数据存储天数最小值为0，默认值为30。
-  DataStorageDays := NonNull_Ret(dsd, 30, 0)
+  ; Zero shows all saved history. A finite range only filters the history view.
+  DataStorageDays := NormalizeHistoryDays(dsd)
   UpdateDeviceCaps(dw, dh)
   UpdateLayout(lkw, lkh, lks, lkhs, lkvs)
   ; 直接重启以便更新设置
@@ -462,86 +443,33 @@ ExitFunc(ExitReason, ExitCode)
 
 LoadData(date)
 {
-  ; 获取历史数据存储天数
-  DataStorageDays := IniRead("KMCounter.ini", "history", "storage", 30)
-  firstday        := EnvAdd(today, -DataStorageDays, "Days", 1, 8)
-
-  ; 删除超时的历史数据
-  SectionNames := StrSplit(IniRead("KMCounter.ini"), "`n", " `t`r`n`v`f")
-  SavedSectionNames:={}
-  for k, SectionName in SectionNames
+  static optionsLoaded := false
+  if (!LoadCounterDay(date))
+    return false
+  if (!optionsLoaded)
   {
-    if SectionName is integer
+    ; 获取屏幕信息
+    devicecaps.w := IniRead(IniPath, "devicecaps", "w", " ")            ; 传空格给最后一个参数才能让默认值变空值（空格）
+    devicecaps.h := IniRead(IniPath, "devicecaps", "h", " ")
+    UpdateDeviceCaps(devicecaps.w, devicecaps.h)                                ; 更新 devicecaps
+    ; 获取布局信息
+    ratio        := A_ScreenWidth<1920 ? A_ScreenWidth/1920 : 1                 ; 高分辨率屏幕通常有 DPIScale 设置，所以不调大小。
+    layout.kw    := IniRead(IniPath, "layout", "kw",  Round(52*ratio))  ; 键宽
+    layout.kh    := IniRead(IniPath, "layout", "kh",  Round(45*ratio))  ; 键高
+    layout.ks    := IniRead(IniPath, "layout", "ks",  Round(2*ratio))   ; 键间距
+    layout.khs   := IniRead(IniPath, "layout", "khs", Round(10*ratio))  ; 区域水平间距
+    layout.kvs   := IniRead(IniPath, "layout", "kvs", Round(10*ratio))  ; 区域垂直间距
+    optionsLoaded := true
+  }
+  for _, control in LoadControlList()
+    if (RegExMatch(control.Hwnd, "^sc\d+$"))
     {
-      if (SectionName < firstday)                ; 小于第一天则算超时
-        IniDelete, KMCounter.ini, %SectionName%  ; 因为要省略最后一个参数才能删除整段，所以只能用命令的形式
-      else
-        SavedSectionNames[SectionName]:=""
+      if (!keyboard[date].HasKey(control.Hwnd))
+        keyboard[date, control.Hwnd] := 0
+      if (!keyboard.total.HasKey(control.Hwnd))
+        keyboard.total[control.Hwnd] := 0
     }
-  }
-  ; 历史数据不存在则返回 false
-  if (!SavedSectionNames.HasKey(date) and date!=today)
-    return, false
-  ; 历史数据已存在则返回 true
-  if (IsObject(mouse[date]) or IsObject(keyboard[date]))
-    return, true
-
-  ; 获取屏幕信息
-  devicecaps.w := IniRead("KMCounter.ini", "devicecaps", "w", " ")            ; 传空格给最后一个参数才能让默认值变空值（空格）
-  devicecaps.h := IniRead("KMCounter.ini", "devicecaps", "h", " ")
-  UpdateDeviceCaps(devicecaps.w, devicecaps.h)                                ; 更新 devicecaps
-  ; 获取布局信息
-  ratio        := A_ScreenWidth<1920 ? A_ScreenWidth/1920 : 1                 ; 高分辨率屏幕通常有 DPIScale 设置，所以不调大小。
-  layout.kw    := IniRead("KMCounter.ini", "layout", "kw",  Round(52*ratio))  ; 键宽
-  layout.kh    := IniRead("KMCounter.ini", "layout", "kh",  Round(45*ratio))  ; 键高
-  layout.ks    := IniRead("KMCounter.ini", "layout", "ks",  Round(2*ratio))   ; 键间距
-  layout.khs   := IniRead("KMCounter.ini", "layout", "khs", Round(10*ratio))  ; 区域水平间距
-  layout.kvs   := IniRead("KMCounter.ini", "layout", "kvs", Round(10*ratio))  ; 区域垂直间距
-  ; 获取鼠标信息
-  for k, v in ["lbcount", "rbcount", "mbcount", "xbcount", "wheel", "hwheel", "move"]
-  {
-    mouse[date, v]    := IniRead("KMCounter.ini", date,    v, 0)
-    mouse["total", v] := IniRead("KMCounter.ini", "total", v, 0)
-  }
-  ; 获取按键信息
-  for k, control in LoadControlList()
-  {
-    if (InStr(control.Hwnd, "sc"))
-    {
-      keyboard[date, control.Hwnd]    := IniRead("KMCounter.ini", date,    control.Hwnd, 0)
-      keyboard["total", control.Hwnd] := IniRead("KMCounter.ini", "total", control.Hwnd, 0)
-    }
-  }
-  keyboard[date].keystrokes           := IniRead("KMCounter.ini", date,    "keystrokes", 0)
-  keyboard["total"].keystrokes        := IniRead("KMCounter.ini", "total", "keystrokes", 0)
-
-  return, true
-}
-
-SaveData()
-{
-  ; 保存历史数据存储天数
-  IniWrite(DataStorageDays, "KMCounter.ini", "history", "storage")
-  ; 保存屏幕信息
-  IniWrite(devicecaps.w,  "KMCounter.ini", "devicecaps", "w")
-  IniWrite(devicecaps.h,  "KMCounter.ini", "devicecaps", "h")
-  ; 保存布局信息
-  IniWrite(layout.kw,     "KMCounter.ini", "layout", "kw")
-  IniWrite(layout.kh,     "KMCounter.ini", "layout", "kh")
-  IniWrite(layout.ks,     "KMCounter.ini", "layout", "ks")
-  IniWrite(layout.khs,    "KMCounter.ini", "layout", "khs")
-  IniWrite(layout.kvs,    "KMCounter.ini", "layout", "kvs")
-  ; 保存鼠标信息
-  for k, v in ["lbcount", "rbcount", "mbcount", "xbcount", "wheel", "hwheel", "move"]
-  {
-    IniWrite(mouse[today][v],   "KMCounter.ini",   today, v)
-    IniWrite(mouse["total"][v], "KMCounter.ini", "total", v)
-  }
-  ; 保存按键信息
-  for k, v in keyboard[today]
-    IniWrite(v, "KMCounter.ini", today, k)
-  for k, v in keyboard["total"]
-    IniWrite(v, "KMCounter.ini", "total", k)
+  return true
 }
 
 HookMouse()
@@ -608,15 +536,7 @@ LowLevelKeyboardProc(nCode, wParam, lParam)
     ; vk := NumGet(lParam+0, "UInt")                                  ; vk 不能区分数字键盘，所以用 sc
       Extended := NumGet(lParam+0, 8, "UInt") & 0x1                   ; 扩展键（即功能键或者数字键盘上的键）是1，否则是0
     , sc := (Extended<<8) | NumGet(lParam+0, 4, "UInt")
-    if (!keyboard[today].HasKey("sc" sc))                             ; 即使不在布局中的按键依然初始化，使其可被记录
-    {
-      keyboard[today,   "sc" sc] := 0
-      keyboard["total", "sc" sc] := 0
-    }
-      keyboard[today,   "sc" sc] += 1
-    , keyboard["total", "sc" sc] += 1
-    , keyboard[today,   "keystrokes"] += 1
-    , keyboard["total", "keystrokes"] += 1
+    CountPhysicalKey(sc)
   }
   ; CallNextHookEx 让其它钩子可以继续处理消息
   ; 返回非0值 例如1 告诉系统此消息将丢弃
@@ -679,22 +599,9 @@ UpdateLayout(lkw, lkh, lks, lkhs, lkvs)
   layout.kvs := lkvs
 }
 
-IniRead(Filename, Section:="", Key:="", Default:=""){
-  IniRead, OutputVar, %Filename%, %Section%, %Key%, %Default%
-  ; 不管是没找到键 亦或是 键值为空 都返回默认值
-  return, OutputVar="" ? Default : OutputVar
-}
-IniWrite(Value, Filename, Section, Key:=""){
-  IniWrite, %Value%, %Filename%, %Section%, %Key%
-}
 EnvSub(Var, Value, TimeUnits){
   EnvSub, Var, %Value%, %TimeUnits%
   return, Var
-}
-EnvAdd(Var, Value, TimeUnits, StartingPos, Length){
-  EnvAdd, Var, %Value%, %TimeUnits%
-  ; 日期经过 EnvAdd 计算后位数会发生变化，所以用 SubStr 还原。
-  return, SubStr(Var, StartingPos, Length)
 }
 MouseGetPos(ByRef OutputVarX, ByRef OutputVarY){
 	MouseGetPos, OutputVarX, OutputVarY
@@ -904,8 +811,8 @@ MultiLanguage:
 
     L_gui2_设置:="设置"
     L_gui2_历史数据:="历史数据"
-    L_gui2_sub1:="设置历史数据保留时长。"
-    L_gui2_存储:="存储"
+    L_gui2_sub1:="0=全部；旧记录不会删除。"
+    L_gui2_存储:="显示范围"
     L_gui2_天:="天"
     L_gui2_屏幕尺寸:="屏幕尺寸"
     L_gui2_sub2:="设置显示器的真实尺寸。"
@@ -952,8 +859,8 @@ MultiLanguage:
 
     L_gui2_设置:="Setting"
     L_gui2_历史数据:="History"
-    L_gui2_sub1:="Set the storage time of history data."
-    L_gui2_存储:="Storage"
+    L_gui2_sub1:="0 = all; older data is kept."
+    L_gui2_存储:="Show days"
     L_gui2_天:="days"
     L_gui2_屏幕尺寸:="Monitor"
     L_gui2_sub2:="Set the real size of the monitor."
@@ -976,6 +883,7 @@ MultiLanguage:
   }
 return
 
+#Include %A_ScriptDir%\lib\CounterStore.ahk
 #Include <OSDTIP>
 #Include <ImagePut>
 #Include <Class_CtlColors>
