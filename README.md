@@ -122,3 +122,19 @@ available for inspection. No GUI libraries are required for these tests.
 [SKAN](https://www.autohotkey.com/boards/viewtopic.php?f=6&t=76881)  
 [just me](https://github.com/AHK-just-me)  
 [robodesign](https://github.com/marius-sucan)  
+
+## 定期保存、跨日与退出诊断
+
+计数有变化时约每 60 秒保存一次，每 5 秒检查日期与保存间隔；没有变化时不重写 INI。跨日会在当前进程内切换日期并保存，不再在午夜 Reload。休眠跨过的空白日期不会被填充为虚构记录，系统时间回退时继续已有日期的计数。手动重载及正常退出前也会保存。
+
+保存先写同目录的 UTF-16 临时文件，检查长度、刷新并回读验证后才替换 `KMCounter.ini`，上一份文件保留为 `KMCounter.ini.previous`。保存失败会保留内存里的未保存计数，之后重试；可取消的退出若保存失败则继续运行并提示。磁盘满、文件锁定、强制结束或断电仍然可能导致最近一次成功保存之后的计数丢失，不能保证任何情况下都不丢数据。
+
+`KMCounter-runtime.log` 记录启动、每五分钟的心跳、保存结果、跨日和退出原因／退出码；单文件约 2 MiB 时轮转为 `.1`。`KMCounter-runtime.state` 用于在下次启动时识别上一次没有正常退出的情况。日志不记录输入的文字、逐个按键顺序或剪贴板内容，也不联网。它能提供后续排查证据，不能凭缺失日志推断历史退出的唯一原因。
+
+测试仅使用新建目录和虚构计数，不安装输入钩子、不打开主程序、不读取用户历史，也不影响已经运行的 KMCounter。使用 AutoHotkey **v1 Unicode** 和 Python 3：
+
+```text
+python tests/run-tests.py "C:\path\to\AutoHotkeyU32.exe" "C:\existing-test-output"
+```
+
+测试覆盖原有历史与累计计数、定期保存、保存失败后重试、前一份快照、跨月／跨年／闰日、休眠间隔、时钟回退、正常退出落盘，以及专用测试子进程被强制结束后的诊断。测试夹具与结果保存在新建的输出目录，便于检查。

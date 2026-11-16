@@ -193,35 +193,9 @@ CountPhysicalKey(sc)
   keyboard.total[key] += 1
   keyboard[today].keystrokes += 1
   keyboard.total.keystrokes += 1
+  RuntimeMarkDirty()
 }
 
-
-SaveData()
-{
-  ; 保存历史数据存储天数
-  IniWrite(36500, IniPath, "history", "storage")
-  IniWrite(DataStorageDays, IniPath, "history", "view_days")
-  ; 保存屏幕信息
-  IniWrite(devicecaps.w,  IniPath, "devicecaps", "w")
-  IniWrite(devicecaps.h,  IniPath, "devicecaps", "h")
-  ; 保存布局信息
-  IniWrite(layout.kw,     IniPath, "layout", "kw")
-  IniWrite(layout.kh,     IniPath, "layout", "kh")
-  IniWrite(layout.ks,     IniPath, "layout", "ks")
-  IniWrite(layout.khs,    IniPath, "layout", "khs")
-  IniWrite(layout.kvs,    IniPath, "layout", "kvs")
-  ; 保存鼠标信息
-  for k, v in ["lbcount", "rbcount", "mbcount", "xbcount", "wheel", "hwheel", "move"]
-  {
-    IniWrite(mouse[today][v],   IniPath,   today, v)
-    IniWrite(mouse["total"][v], IniPath, "total", v)
-  }
-  ; 保存按键信息
-  for k, v in keyboard[today]
-    IniWrite(v, IniPath, today, k)
-  for k, v in keyboard["total"]
-    IniWrite(v, IniPath, "total", k)
-}
 
 IniRead(Filename, Section:="", Key:="", Default:=""){
   IniRead, OutputVar, %Filename%, %Section%, %Key%, %Default%

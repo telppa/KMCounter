@@ -1,4 +1,4 @@
-#NoEnv
+﻿#NoEnv
 #NoTrayIcon
 #SingleInstance Off
 SetBatchLines, -1
@@ -141,6 +141,8 @@ ResetStore(path)
   global
   IniPath := path, CounterStoreReady := false
   SavedCounterDates := {}, HistoryDates := [], mouse := {}, keyboard := {}
+  RuntimePid := DllCall("GetCurrentProcessId"), RuntimeReady := true, RuntimeSaving := false
+  RuntimeDirtyDays := {}, RuntimeRevision := 0, RuntimeSavedRevision := -1, RuntimeEvents := []
 }
 
 NewFixture(name, content)
@@ -167,3 +169,5 @@ Assert(condition, label)
 }
 
 #Include %A_ScriptDir%\..\lib\CounterStore.ahk
+
+#Include %A_ScriptDir%\..\lib\RuntimePersistence.ahk

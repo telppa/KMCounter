@@ -21,13 +21,14 @@ SetWorkingDir, %A_ScriptDir%
 
 global APPName:="KMCounter", ver:=3.7
      , today:=SubStr(A_Now, 1, 8)
-     , tomorrow:=EnvAdd(today, 1, "Days", 1, 8)
      , DataStorageDays, firstday
      , IniPath:=A_ScriptDir "\KMCounter.ini", CounterStoreReady:=false
      , SavedCounterDates:={}, HistoryDates:=[]
      , devicecaps:={}, layout:={}
      , hHookMouse, mouse:={}
      , hHookKeyboard, keyboard:={}
+
+RuntimeInit()
 
 gosub, MultiLanguage                    ; 多语言支持
 gosub, Welcome                          ; 首次使用时显示欢迎信息
@@ -40,9 +41,9 @@ gosub, CreateGui2                       ; 预先创建 GUI2 以便需要时加�
 HookMouse()                             ; 鼠标钩子
 HookKeyboard()                          ; 键盘钩子
 
-SetTimer, Reload, % countdown()         ; 设置一个计时器用于跨夜时重启进程以便保存当日数据并开始新的一天
+RuntimeStart()
+SaveData("startup")
 SetTimer, ReloadHook, % 60000*10        ; 每10分钟重载一次钩子，避免用户的按键映射型钩子的影响
-OnExit("ExitFunc")                      ; 退出时在这里卸载钩子并保存参数
 
 return
 
@@ -218,7 +219,12 @@ SaveSetting:
 return
 
 Reload:
+  RuntimeLog("reload_requested", "settings_or_manual")
+  if (!SaveData("before_reload"))
+    return
   Reload
+  Sleep, 1000
+  RuntimeLog("reload_failed", "original_instance_still_running")
 return
 
 ReloadHook:
@@ -433,13 +439,6 @@ BlockClick(wParam, lParam, msg, hwnd)
     return, 0                       ; 必须返回0才能丢掉消息实现屏蔽的效果
 }
 
-ExitFunc(ExitReason, ExitCode)
-{
-  DllCall("UnhookWindowsHookEx", "UInt", hHookMouse)
-  DllCall("UnhookWindowsHookEx", "UInt", hHookKeyboard)
-  CtlColors.Free()
-  SaveData()
-}
 
 LoadData(date)
 {
@@ -494,6 +493,8 @@ LowLevelMouseProc(nCode, wParam, lParam)
   flags := NumGet(lParam+0, 12, "UInt") & 0x1                            ; 物理按下是0，模拟是1。0x1 = 00000001
   if (nCode>=0 and flags=0)
   {
+    RuntimeEnsureDay()
+    RuntimeMarkDirty()
     switch, wParam
     {
       case, 0x0200:                                                      ; WM_MOUSEMOVE   = 0x0200
@@ -536,6 +537,7 @@ LowLevelKeyboardProc(nCode, wParam, lParam)
     ; vk := NumGet(lParam+0, "UInt")                                  ; vk 不能区分数字键盘，所以用 sc
       Extended := NumGet(lParam+0, 8, "UInt") & 0x1                   ; 扩展键（即功能键或者数字键盘上的键）是1，否则是0
     , sc := (Extended<<8) | NumGet(lParam+0, 4, "UInt")
+    RuntimeEnsureDay()
     CountPhysicalKey(sc)
   }
   ; CallNextHookEx 让其它钩子可以继续处理消息
@@ -565,11 +567,7 @@ getcolors(c1, c2, n)
   return, colors
 }
 
-countdown()
-{
-  ; 距离明天凌晨 0:00:05 的秒数，+5秒是为了给系统时间不准留点余量
-  return, -(EnvSub(tomorrow, A_Now, "Seconds")+5)*1000
-}
+
 
 UpdateDeviceCaps(w:="", h:="")
 {
@@ -889,3 +887,4 @@ return
 #Include <Class_CtlColors>
 #Include <Class_ImageButton>
 #Include <UseGDIP>
+#Include %A_ScriptDir%\lib\RuntimePersistence.ahk
